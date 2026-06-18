@@ -197,7 +197,7 @@
 
     /* ─── Section Header ─── */
     .section-header {
-      padding: 22px 18px 12px;
+      padding: 22px 0 12px;
       display: flex;
       align-items: flex-end;
       justify-content: space-between;
@@ -215,12 +215,19 @@
       font-weight: 500;
     }
 
+    /* ─── Content wrapper — centers & constrains on wide screens ─── */
+    .content-wrap {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 14px;
+    }
+
     /* ─── Product Grid ─── */
     .product-grid {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
       gap: 10px;
-      padding: 0 14px 14px;
+      padding-bottom: 14px;
     }
 
     /* ─── Product Card ─── */
@@ -653,14 +660,14 @@
   </div>
 </section>
 
-<!-- Section Header -->
-<div class="section-header">
-  <h2>PRO Store</h2>
-  <span class="count" id="product-count">8 items</span>
+<!-- Section Header + Grid -->
+<div class="content-wrap">
+  <div class="section-header">
+    <h2>PRO Store</h2>
+    <span class="count" id="product-count">8 items</span>
+  </div>
+  <div class="product-grid" id="product-grid"></div>
 </div>
-
-<!-- Product Grid -->
-<div class="product-grid" id="product-grid"></div>
 
 <!-- Overlay -->
 <div class="overlay" id="overlay" onclick="closeCart()"></div>
