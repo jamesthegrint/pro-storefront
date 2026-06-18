@@ -2,19 +2,33 @@
  * Netlify Function: create-checkout
  *
  * Creates a Shopify Draft Order with a 15% PRO Member discount
- * applied directly — no discount code, no code visible anywhere.
+ * applied directly — no discount code visible anywhere.
  * Returns a one-time invoice_url (the checkout link).
  *
- * Required env vars (Netlify → Site Settings → Environment Variables):
+ * Required env vars:
  *   SHOPIFY_STORE_DOMAIN   e.g. af0140-2.myshopify.com
- *   SHOPIFY_ADMIN_TOKEN    Admin API access token (shpat_...)
+ *   SHOPIFY_ADMIN_TOKEN    Admin API access token (atkn_...)
  */
 
 const SHOPIFY_API_VERSION = '2024-04';
 
-export async function handler(event) {
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+function respond(statusCode, body) {
+  return {
+    statusCode,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    body: JSON.stringify(body),
+  };
+}
+
+exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 204, headers: corsHeaders(), body: '' };
+    return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
   if (event.httpMethod !== 'POST') {
@@ -34,7 +48,7 @@ export async function handler(event) {
     return respond(400, { error: 'Invalid request body' });
   }
 
-  const { items } = body; // [{ variantId, quantity }, ...]
+  const { items } = body;
   if (!items || !items.length) {
     return respond(400, { error: 'No items provided' });
   }
@@ -47,13 +61,11 @@ export async function handler(event) {
   const draftOrder = {
     line_items: lineItems,
     applied_discount: {
-      description: 'PRO Member Discount',
+      description: 'TheGrint PRO Member',
       value_type: 'percentage',
       value: '15.0',
-      title: 'PRO Member Discount',
-      amount: null, // Shopify calculates this
+      title: 'TheGrint PRO Member',
     },
-    use_customer_default_address: false,
   };
 
   try {
@@ -86,20 +98,4 @@ export async function handler(event) {
     console.error('Unexpected error:', err);
     return respond(500, { error: 'Internal server error' });
   }
-}
-
-function corsHeaders() {
-  return {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
-  };
-}
-
-function respond(statusCode, body) {
-  return {
-    statusCode,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
-    body: JSON.stringify(body),
-  };
-}
+};
