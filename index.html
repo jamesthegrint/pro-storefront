@@ -846,6 +846,10 @@
       return { variantId: p.variantId, quantity: qty };
     });
 
+    // Open window immediately (must be in the same call stack as the click
+    // to avoid browser popup blockers) then navigate once we have the URL
+    const win = window.open('', '_blank');
+
     let checkoutUrl;
     try {
       const res = await fetch('/.netlify/functions/create-checkout', {
@@ -867,7 +871,7 @@
     btn.innerHTML = origHTML; btn.style.opacity = ''; btn.disabled = false;
     if (stickyBtn) { stickyBtn.textContent = 'View Cart →'; stickyBtn.disabled = false; }
 
-    window.open(checkoutUrl, '_blank');
+    win.location.href = checkoutUrl;
   }
 
   function showToast(msg) {
