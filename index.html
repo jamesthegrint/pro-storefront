@@ -832,23 +832,42 @@
   async function checkout() {
     const items = Object.entries(cart);
     if (!items.length) return;
+
     const btn = document.getElementById('main-checkout-btn');
     const stickyBtn = document.querySelector('.sticky-checkout-btn');
-    const orig = btn.innerHTML;
+    const origHTML = btn.innerHTML;
     btn.innerHTML = '<span style="opacity:0.7;font-size:13px">Securing your PRO price…</span>';
     btn.style.opacity = '0.75'; btn.disabled = true;
     if (stickyBtn) { stickyBtn.textContent = 'Loading…'; stickyBtn.disabled = true; }
-    const cartStr = items.map(([id,q]) => { const p = products.find(x => x.id === parseInt(id)); return `${p.variantId}:${q}`; }).join(',');
-    let code;
+
+    // Build item payload for the function
+    const payload = items.map(([id, qty]) => {
+      const p = products.find(x => x.id === parseInt(id));
+      return { variantId: p.variantId, quantity: qty };
+    });
+
+    let checkoutUrl;
     try {
-      const res = await fetch('/.netlify/functions/get-discount', { method: 'POST' });
+      const res = await fetch('/.netlify/functions/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: payload }),
+      });
       if (!res.ok) throw new Error();
-      code = (await res.json()).code;
-    } catch { code = null; }
-    btn.innerHTML = orig; btn.style.opacity = ''; btn.disabled = false;
+      checkoutUrl = (await res.json()).checkoutUrl;
+    } catch {
+      // Fallback — send to cart without discount rather than blocking user
+      const cartStr = items.map(([id, qty]) => {
+        const p = products.find(x => x.id === parseInt(id));
+        return `${p.variantId}:${qty}`;
+      }).join(',');
+      checkoutUrl = `https://thegrint.shop/cart/${cartStr}`;
+    }
+
+    btn.innerHTML = origHTML; btn.style.opacity = ''; btn.disabled = false;
     if (stickyBtn) { stickyBtn.textContent = 'View Cart →'; stickyBtn.disabled = false; }
-    const url = `https://thegrint.shop/cart/${cartStr}${code ? `?discount=${code}` : ''}`;
-    window.open(url, '_blank');
+
+    window.open(checkoutUrl, '_blank');
   }
 
   function showToast(msg) {
