@@ -269,6 +269,32 @@
       padding: 3px 8px 3px 7px;
       border-radius: 0 4px 4px 0;
     }
+    .out-of-stock-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,26,46,0.72);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .out-of-stock-tag {
+      background: rgba(30,30,30,0.85);
+      border: 1.5px solid rgba(255,255,255,0.2);
+      color: var(--off-white);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 20px;
+    }
+    .product-card.unavailable { opacity: 0.75; }
+    .product-card.unavailable .add-btn {
+      background: rgba(255,255,255,0.08);
+      color: var(--gray);
+      cursor: not-allowed;
+      box-shadow: none;
+    }
     .product-info {
       padding: 12px 12px 13px;
       flex: 1;
@@ -710,14 +736,14 @@
   const DISCOUNT = 0.15;
 
   const products = [
-    { id:1, variantId:49035993448732, name:'Swingman Rangefinder', price:149.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Social_Posts_ads-9.png', handle:'swingman-rangefinder' },
-    { id:2, variantId:53948491104540, name:'Swingman Autograph Rangefinder', price:299.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/194.png', handle:'swingman-autograph-rangefinder' },
-    { id:3, variantId:50536501772572, name:'TheGrint Starter Pack', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/54.png', handle:'thegrint-pro-golf-kit' },
-    { id:4, variantId:52707292479772, name:'TheGrint Hoodie', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png', handle:'thegrint-hoodie' },
-    { id:5, variantId:53039173107996, name:'Golf Cart Phone Mount', price:20.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/134.png', handle:'thegrint-golf-cart-phone-mount' },
-    { id:6, variantId:52404819853596, name:'TheGrint Caddy Towel', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png', handle:'thegrint-caddie-towel' },
-    { id:7, variantId:53298872385820, name:'Shield Performance Hat', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png', handle:'thegrint-shield-performance-hat' },
-    { id:8, variantId:47061150368028, name:'TheGrint Ball Marker', price:12.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png', handle:'thegrint-ball-marker' },
+    { id:1, variantId:49035993448732, name:'Swingman Rangefinder', price:149.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Social_Posts_ads-9.png', handle:'swingman-rangefinder', available:true },
+    { id:2, variantId:53948491104540, name:'Swingman Autograph Rangefinder', price:299.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/194.png', handle:'swingman-autograph-rangefinder', available:true },
+    { id:3, variantId:50536501772572, name:'TheGrint Starter Pack', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/54.png', handle:'thegrint-pro-golf-kit', available:false },
+    { id:4, variantId:52707292479772, name:'TheGrint Hoodie', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png', handle:'thegrint-hoodie', available:true },
+    { id:5, variantId:53039173107996, name:'Golf Cart Phone Mount', price:20.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/134.png', handle:'thegrint-golf-cart-phone-mount', available:true },
+    { id:6, variantId:52404819853596, name:'TheGrint Caddy Towel', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png', handle:'thegrint-caddie-towel', available:true },
+    { id:7, variantId:53298872385820, name:'Shield Performance Hat', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png', handle:'thegrint-shield-performance-hat', available:true },
+    { id:8, variantId:47061150368028, name:'TheGrint Ball Marker', price:12.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png', handle:'thegrint-ball-marker', available:false },
   ];
 
   let cart = {};
@@ -729,25 +755,28 @@
       const pro = proPrice(p.price);
       const qty = cart[p.id] || 0;
       return `
-        <div class="product-card" id="card-${p.id}">
+        <div class="product-card${p.available ? '' : ' unavailable'}" id="card-${p.id}">
           <div class="product-img-wrap">
             <img src="${p.image}" alt="${p.name}" loading="lazy" />
             <div class="pro-ribbon">PRO</div>
+            ${!p.available ? `<div class="out-of-stock-overlay"><span class="out-of-stock-tag">Out of Stock</span></div>` : ''}
           </div>
           <div class="product-info">
             <div class="product-name">${p.name}</div>
             <div class="price-row">
               <span class="price-original">${fmt(p.price)}</span>
               <span class="price-pro">${fmt(pro)}</span>
-              <span class="savings-tag">-15%</span>
+              ${p.available ? `<span class="savings-tag">-15%</span>` : ''}
             </div>
-            ${qty === 0
-              ? `<button class="add-btn" onclick="addToCart(${p.id})">Add to Cart</button>`
-              : `<div class="qty-controls show" id="qc-${p.id}">
-                   <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
-                   <span class="qty-num" id="qn-${p.id}">${qty}</span>
-                   <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
-                 </div>`
+            ${!p.available
+              ? `<button class="add-btn" disabled>Out of Stock</button>`
+              : qty === 0
+                ? `<button class="add-btn" onclick="addToCart(${p.id})">Add to Cart</button>`
+                : `<div class="qty-controls show" id="qc-${p.id}">
+                     <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
+                     <span class="qty-num" id="qn-${p.id}">${qty}</span>
+                     <button class="qty-btn" onclick="changeQty(${p.id},1)">+</button>
+                   </div>`
             }
           </div>
         </div>`;
