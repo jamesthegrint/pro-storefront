@@ -51,7 +51,12 @@ exports.handler = async function (event) {
 
     const data = await res.json();
 
-    const products = data.products.map(p => {
+    // Double-check: only include products that actually have the tag
+    const tagged = data.products.filter(p =>
+      p.tags.split(',').map(t => t.trim().toLowerCase()).includes('pro-storefront')
+    );
+
+    const products = tagged.map(p => {
       const firstVariant = p.variants[0];
       const hasVariants = p.variants.length > 1;
 
