@@ -887,13 +887,22 @@
   </div>
 </section>
 
-<!-- Section Header + Grid -->
+<!-- PRO Discounted Section -->
 <div class="content-wrap">
   <div class="section-header">
     <h2>PRO Store</h2>
-    <span class="count" id="product-count">8 items</span>
+    <span class="count" id="product-count"></span>
   </div>
   <div class="product-grid" id="product-grid"></div>
+</div>
+
+<!-- Also in the Shop Section -->
+<div class="content-wrap" id="also-section" style="display:none;">
+  <div class="section-header" style="margin-top:24px;">
+    <h2>Also in the Shop</h2>
+    <span class="count" id="also-count"></span>
+  </div>
+  <div class="product-grid" id="also-grid"></div>
 </div>
 
 <!-- Overlay -->
@@ -958,8 +967,11 @@
   const DISCOUNT = 0.15;
 
   // Products are loaded dynamically from Shopify via get-products function.
-  // Tag any product in Shopify Admin with "pro-storefront" to show it here.
-  let products = [];
+  // Tag "pro-storefront" → PRO price section. Tag "pro-storefront-full" → Also in the Shop.
+  let products = [];      // discounted PRO items
+  let alsoProducts = [];  // full-price items
+  // Track which cart items are discounted
+  const cartDiscounted = {};
 
   // Maps color option names to hex values for swatch rendering
   const COLOR_HEX = {
@@ -1070,7 +1082,7 @@
   }
 
   function selectVariantColor(productId, colorValue, colorKey, sizeKey) {
-    const p = products.find(x => x.id === productId);
+    const p = allProducts().find(x => x.id === productId);
     const currentV = getSelectedVariant(p);
     const currentSize = currentV?.[sizeKey];
     const match = p.variants.find(v => v[colorKey] === colorValue && v[sizeKey] === currentSize)
@@ -1079,31 +1091,36 @@
   }
 
   function renderProducts() {
-    document.getElementById('product-grid').innerHTML = products.map(p => {
+    renderGrid('product-grid', products, true);
+    renderGrid('also-grid', alsoProducts, false);
+  }
+
+  function renderGrid(gridId, list, discounted) {
+    document.getElementById(gridId).innerHTML = list.map(p => {
       const selectedV = getSelectedVariant(p);
       const activePrice = selectedV?.price ?? p.price;
       const activeImage = selectedV?.image ?? p.image;
-      const pro = proPrice(activePrice);
+      const displayPrice = discounted ? proPrice(activePrice) : activePrice;
       const qty = cart[p.id]?.qty ?? cart[p.id] ?? 0;
       return `
         <div class="product-card${p.available ? '' : ' unavailable'}" id="card-${p.id}">
           <div class="product-img-wrap" onclick="openModal(${p.id})" style="cursor:pointer;">
             <img src="${activeImage}" alt="${p.name}" loading="lazy" id="img-${p.id}" />
-            <div class="pro-ribbon">PRO</div>
+            ${discounted ? `<div class="pro-ribbon">PRO</div>` : ''}
             ${!p.available ? `<div class="out-of-stock-overlay"><span class="out-of-stock-tag">Out of Stock</span></div>` : ''}
           </div>
           <div class="product-info">
             <div class="product-name">${p.name}</div>
             <div class="price-row">
-              <span class="price-original">${fmt(activePrice)}</span>
-              <span class="price-pro">${fmt(pro)}</span>
-              ${p.available ? `<span class="savings-tag">-15%</span>` : ''}
+              ${discounted ? `<span class="price-original">${fmt(activePrice)}</span>` : ''}
+              <span class="price-pro">${fmt(displayPrice)}</span>
+              ${discounted && p.available ? `<span class="savings-tag">-15%</span>` : ''}
             </div>
             ${renderVariants(p)}
             ${!p.available
               ? `<button class="add-btn" disabled>Out of Stock</button>`
               : qty === 0
-                ? `<button class="add-btn" onclick="addToCart(${p.id})">Add to Cart</button>`
+                ? `<button class="add-btn" onclick="addToCart(${p.id}, ${discounted})">Add to Cart</button>`
                 : `<div class="qty-controls show" id="qc-${p.id}">
                      <button class="qty-btn" onclick="changeQty(${p.id},-1)">−</button>
                      <span class="qty-num" id="qn-${p.id}">${qty}</span>
@@ -1115,10 +1132,11 @@
     }).join('');
   }
 
-  function addToCart(id) {
-    const p = products.find(x => x.id === id);
+  function addToCart(id, discounted = true) {
+    const p = [...products, ...alsoProducts].find(x => x.id === id);
     const variantId = selectedVariants[id] || p.variantId;
     cart[id] = { qty: 1, variantId };
+    cartDiscounted[id] = discounted;
     renderProducts();
     updateCartUI();
     showToast('Added to cart ✓');
@@ -1135,16 +1153,21 @@
     if (Object.keys(cart).length > 0 && document.getElementById('cart-drawer').classList.contains('show')) renderCartDrawer();
   }
 
+  function allProducts() { return [...products, ...alsoProducts]; }
+
   function cartTotals() {
     let orig = 0, pro = 0, qty = 0;
     for (const [id, entry] of Object.entries(cart)) {
-      const p = products.find(x => x.id === parseInt(id));
+      const p = allProducts().find(x => x.id === parseInt(id));
       if (!p) continue;
       const q = entry?.qty ?? entry;
       const variantId = entry?.variantId ?? p.variantId;
       const variant = p.variants?.find(v => v.id === variantId);
       const price = variant?.price ?? p.price;
-      orig += price * q; pro += proPrice(price) * q; qty += q;
+      const discounted = cartDiscounted[id] !== false;
+      orig += price * q;
+      pro += (discounted ? proPrice(price) : price) * q;
+      qty += q;
     }
     return { orig, pro, savings: orig - pro, qty };
   }
@@ -1165,11 +1188,12 @@
   function renderCartDrawer() {
     const { orig, pro, savings } = cartTotals();
     const items = Object.entries(cart).map(([id, entry]) => {
-      const p = products.find(x => x.id === parseInt(id));
+      const p = allProducts().find(x => x.id === parseInt(id));
       const q = entry?.qty ?? entry;
       const variantId = entry?.variantId ?? p?.variantId;
       const variant = p?.variants?.find(v => v.id === variantId);
-      return { p, q, variant };
+      const discounted = cartDiscounted[id] !== false;
+      return { p, q, variant, discounted };
     }).filter(x => x.p);
     const el = document.getElementById('drawer-items');
     const sum = document.getElementById('cart-summary');
@@ -1177,17 +1201,19 @@
       el.innerHTML = `<div class="empty-cart"><div class="empty-cart-icon">🛒</div><p><strong>Your cart is empty</strong><br>Add some PRO-exclusive gear above!</p></div>`;
       sum.innerHTML = ''; return;
     }
-    el.innerHTML = items.map(({p, q, variant}) => {
+    el.innerHTML = items.map(({p, q, variant, discounted}) => {
       const price = variant?.price ?? p.price;
       const image = variant?.image ?? p.image;
       const subtitle = variant ? `<div style="font-size:10px;color:var(--gray);margin-top:1px">${variant.label}</div>` : '';
+      const displayPrice = discounted ? proPrice(price) : price;
+      const origSpan = discounted ? `<span class="cart-item-orig">${fmt(price)}</span>` : '';
       return `
       <div class="cart-item">
         <img class="cart-item-img" src="${image}" alt="${p.name}" />
         <div class="cart-item-details">
           <div class="cart-item-name">${p.name}</div>
           ${subtitle}
-          <div class="cart-item-price">${fmt(proPrice(price))} ea <span class="cart-item-orig">${fmt(price)}</span></div>
+          <div class="cart-item-price">${fmt(displayPrice)} ea ${origSpan}</div>
         </div>
         <div class="cart-item-qty">
           <button class="cq-btn" onclick="changeQty(${p.id},-1);renderCartDrawer();">−</button>
@@ -1228,10 +1254,11 @@
 
     // Build item payload for the function
     const payload = items.map(([id, entry]) => {
-      const p = products.find(x => x.id === parseInt(id));
+      const p = allProducts().find(x => x.id === parseInt(id));
       const qty = entry?.qty ?? entry;
       const variantId = entry?.variantId ?? p.variantId;
-      return { variantId, quantity: qty };
+      const discounted = cartDiscounted[id] !== false;
+      return { variantId, quantity: qty, discounted };
     });
 
     // Open window immediately (must be in the same call stack as the click
@@ -1249,9 +1276,10 @@
       checkoutUrl = (await res.json()).checkoutUrl;
     } catch {
       // Fallback — send to cart without discount rather than blocking user
-      const cartStr = items.map(([id, qty]) => {
-        const p = products.find(x => x.id === parseInt(id));
-        return `${p.variantId}:${qty}`;
+      const cartStr = items.map(([id, entry]) => {
+        const p = allProducts().find(x => x.id === parseInt(id));
+        const qty = entry?.qty ?? entry;
+        return `${entry?.variantId ?? p.variantId}:${qty}`;
       }).join(',');
       checkoutUrl = `https://thegrint.shop/cart/${cartStr}`;
     }
@@ -1266,7 +1294,7 @@
 
   function openModal(productId) {
     _modalProductId = productId;
-    const p = products.find(x => x.id === productId);
+    const p = allProducts().find(x => x.id === productId);
     if (!p) return;
     const selectedV = getSelectedVariant(p);
     const activePrice = selectedV?.price ?? p.price;
@@ -1275,8 +1303,9 @@
     document.getElementById('modal-main-img').src = activeImage;
     document.getElementById('modal-main-img').alt = p.name;
     document.getElementById('modal-title').textContent = p.name;
-    document.getElementById('modal-price-orig').textContent = fmt(activePrice);
-    document.getElementById('modal-price-pro').textContent = fmt(proPrice(activePrice));
+    const isDiscounted = products.some(x => x.id === productId);
+    document.getElementById('modal-price-orig').textContent = isDiscounted ? fmt(activePrice) : '';
+    document.getElementById('modal-price-pro').textContent = isDiscounted ? fmt(proPrice(activePrice)) : fmt(activePrice);
     document.getElementById('modal-desc').innerHTML = p.description || '<p style="color:var(--dim)">No description available.</p>';
 
     // Thumbnails — use all product images if available
@@ -1325,7 +1354,7 @@
   }
 
   function resetImage(productId) {
-    const p = products.find(x => x.id === productId);
+    const p = allProducts().find(x => x.id === productId);
     const selectedV = getSelectedVariant(p);
     const img = document.getElementById(`img-${productId}`);
     if (img) img.src = selectedV?.image ?? p.image;
@@ -1346,8 +1375,17 @@
       const res = await fetch('/.netlify/functions/get-products');
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
-      products = data.products;
-      products.forEach(p => { selectedVariants[p.id] = p.variantId; });
+      products = data.proProducts || [];
+      alsoProducts = data.alsoProducts || [];
+      [...products, ...alsoProducts].forEach(p => { selectedVariants[p.id] = p.variantId; });
+      document.getElementById('product-count').textContent = `${products.length} item${products.length !== 1 ? 's' : ''}`;
+      const alsoSection = document.getElementById('also-section');
+      if (alsoProducts.length > 0) {
+        alsoSection.style.display = '';
+        document.getElementById('also-count').textContent = `${alsoProducts.length} item${alsoProducts.length !== 1 ? 's' : ''}`;
+      } else {
+        alsoSection.style.display = 'none';
+      }
       renderProducts();
       updateCartUI();
     } catch (err) {

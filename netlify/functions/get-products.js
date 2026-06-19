@@ -1,9 +1,11 @@
 /**
  * Netlify Function: get-products
  *
- * Returns all active Shopify products tagged "pro-storefront".
- * Tag any product in Shopify Admin → Products → Tags with "pro-storefront"
- * to have it appear in the PRO storefront automatically.
+ * Returns two product lists:
+ *   - proProducts:  tagged "pro-storefront"      → shown with 15% PRO discount
+ *   - alsoProducts: tagged "pro-storefront-full" → shown at full price
+ *
+ * Tag products in Shopify Admin → Products → Tags.
  *
  * Required env vars:
  *   SHOPIFY_STORE_DOMAIN   e.g. af0140-2.myshopify.com
@@ -38,25 +40,22 @@ exports.handler = async function (event) {
   }
 
   try {
-    const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=pro-storefront&limit=50&status=active`;
-    const res = await fetch(url, {
-      headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN },
-    });
+    const fetchTag = async (tag) => {
+      const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`;
+      const res = await fetch(url, { headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN } });
+      if (!res.ok) throw new Error(`Shopify ${res.status}`);
+      const data = await res.json();
+      return data.products.filter(p =>
+        p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
+      );
+    };
 
-    if (!res.ok) {
-      const err = await res.text();
-      console.error('Shopify error:', res.status, err);
-      return respond(502, { error: 'Failed to fetch products' });
-    }
+    const [proRaw, alsoRaw] = await Promise.all([
+      fetchTag('pro-storefront'),
+      fetchTag('pro-storefront-full'),
+    ]);
 
-    const data = await res.json();
-
-    // Double-check: only include products that actually have the tag
-    const tagged = data.products.filter(p =>
-      p.tags.split(',').map(t => t.trim().toLowerCase()).includes('pro-storefront')
-    );
-
-    const products = tagged.map(p => {
+    const mapProduct = (p) => {
       const firstVariant = p.variants[0];
       const hasVariants = p.variants.length > 1;
 
@@ -91,9 +90,12 @@ exports.handler = async function (event) {
         variants,
         options: p.options.map(o => o.name),
       };
-    });
+    };
 
-    return respond(200, { products });
+    const proProducts  = proRaw.map(mapProduct);
+    const alsoProducts = alsoRaw.map(mapProduct);
+
+    return respond(200, { proProducts, alsoProducts });
   } catch (err) {
     console.error('Unexpected error:', err);
     return respond(500, { error: 'Internal server error' });

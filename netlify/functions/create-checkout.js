@@ -53,20 +53,21 @@ exports.handler = async function (event) {
     return respond(400, { error: 'No items provided' });
   }
 
-  const lineItems = items.map(({ variantId, quantity }) => ({
-    variant_id: variantId,
-    quantity,
-  }));
+  // Each item may have a discounted flag — only apply PRO discount to those
+  const lineItems = items.map(({ variantId, quantity, discounted }) => {
+    const item = { variant_id: variantId, quantity };
+    if (discounted) {
+      item.applied_discount = {
+        description: 'TheGrint PRO Member',
+        value_type: 'percentage',
+        value: '15.0',
+        title: 'TheGrint PRO Member',
+      };
+    }
+    return item;
+  });
 
-  const draftOrder = {
-    line_items: lineItems,
-    applied_discount: {
-      description: 'TheGrint PRO Member',
-      value_type: 'percentage',
-      value: '15.0',
-      title: 'TheGrint PRO Member',
-    },
-  };
+  const draftOrder = { line_items: lineItems };
 
   try {
     const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/draft_orders.json`;
