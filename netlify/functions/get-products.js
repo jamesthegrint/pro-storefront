@@ -69,7 +69,7 @@ exports.handler = async function (event) {
           option2: v.option2 || null,
           option3: v.option3 || null,
           price: parseFloat(v.price),
-          available: v.available,
+          available: v.inventory_quantity > 0 || v.inventory_policy === 'continue',
           image: v.image_id ? (imageById[v.image_id] || mainImage) : mainImage,
         }));
       }
@@ -78,7 +78,7 @@ exports.handler = async function (event) {
         id: p.id,
         name: p.title,
         price: parseFloat(firstVariant.price),
-        available: p.variants.some(v => v.available),
+        available: p.variants.some(v => v.inventory_quantity > 0 || v.inventory_policy === 'continue'),
         image: mainImage,
         variantId: firstVariant.id,
         variants,
