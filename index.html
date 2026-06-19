@@ -795,80 +795,33 @@
 <script>
   const DISCOUNT = 0.15;
 
-  const products = [
-    {
-      id:1, name:'Swingman Rangefinder', price:149.99, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Social_Posts_ads-9.png',
-      variants: null, variantId:49035993448732,
-    },
-    {
-      id:2, name:'Swingman Autograph Rangefinder', price:299.99, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/194.png',
-      variants: null, variantId:53948491104540,
-    },
-    {
-      id:3, name:'TheGrint Starter Pack', price:45.00, available:false,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/54.png',
-      variants: null, variantId:50536501772572,
-    },
-    {
-      id:4, name:'TheGrint Hoodie', price:45.00, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png',
-      variants: [
-        { id:52707292479772,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:52707292512540,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:52707292545308,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:52707292578076,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:53351304266012,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:53351304298780,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:53351304331548,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:53351304364316,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
-        { id:53351304397084,  label:'Navy / S',  type:'color', color:'#1a2f4a', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
-        { id:53351304429852,  label:'Navy / M',  type:'color', color:'#1a2f4a', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
-        { id:53351304462620,  label:'Navy / L',  type:'color', color:'#1a2f4a', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
-        { id:53351304495388,  label:'Navy / XL', type:'color', color:'#1a2f4a', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
-      ],
-      variantId: 52707292479772,
-    },
-    {
-      id:5, name:'Golf Cart Phone Mount', price:20.00, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/134.png',
-      variants: null, variantId:53039173107996,
-    },
-    {
-      id:6, name:'TheGrint Caddy Towel', price:30.00, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png',
-      variants: [
-        { id:52404819853596, label:'Navy',  type:'color', color:'#1a2f4a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_blue_towel_71530dc7-103f-48dc-94a2-a475b262e256.png' },
-        { id:52404819820828, label:'White', type:'color', color:'#f0f0f0', border:true, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png' },
-      ],
-      variantId: 52404819853596,
-    },
-    {
-      id:7, name:'Shield Performance Hat', price:30.00, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png',
-      variants: [
-        { id:53298872385820, label:'Gray',  type:'color', color:'#8a8a8a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/16_6d7c4f6b-4f61-4581-9ca8-396b30180d29.png' },
-        { id:53298872418588, label:'Navy',  type:'color', color:'#1a2f4a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png' },
-        { id:53298872451356, label:'White', type:'color', color:'#f0f0f0', border:true, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/18_74fbf729-2133-4945-91fe-3b6acd22e075.png' },
-      ],
-      variantId: 53298872385820,
-    },
-    {
-      id:8, name:'TheGrint Ball Marker', price:12.00, available:true,
-      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png',
-      variants: [
-        { id:47061150368028, label:'Gold (PRO)', type:'color', color:'#c9a84c', price:12.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png' },
-        { id:53259571560732, label:'Silver',     type:'color', color:'#a8a8a8', price:9.00,  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Silver_Coin_Front.png' },
-        { id:53259571593500, label:'Bronze',     type:'color', color:'#a0694a', price:9.00,  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Bronze_Coin_Front.png' },
-      ],
-      variantId: 47061150368028,
-    },
-  ];
+  // Products are loaded dynamically from Shopify via get-products function.
+  // Tag any product in Shopify Admin with "pro-storefront" to show it here.
+  let products = [];
+
+  // Maps color option names to hex values for swatch rendering
+  const COLOR_HEX = {
+    'navy': '#1a2f4a', 'white': '#f0f0f0', 'gray': '#8a8a8a', 'grey': '#8a8a8a',
+    'sand': '#c8b89a', 'gold': '#c9a84c', 'silver': '#a8a8a8', 'bronze': '#a0694a',
+    'black': '#222222', 'red': '#c0392b', 'blue': '#2255aa', 'green': '#2e7d32',
+    'pink': '#d4608a', 'purple': '#6a3d9a', 'orange': '#d4692b', 'yellow': '#c9a820',
+    'charcoal': '#444444', 'heather': '#7a8a9a', 'cream': '#f5f0e0', 'tan': '#c8a87a',
+  };
+  function getColorHex(name) {
+    if (!name) return '#6b7a96';
+    const lower = name.toLowerCase();
+    if (COLOR_HEX[lower]) return COLOR_HEX[lower];
+    for (const [key, val] of Object.entries(COLOR_HEX)) {
+      if (lower.includes(key)) return val;
+    }
+    return '#6b7a96';
+  }
+  function isLightColor(hex) {
+    return ['#f0f0f0','#ffffff','#f5f0e0','#c8b89a','#c8a87a'].includes(hex.toLowerCase());
+  }
 
   // Track selected variant per product
   const selectedVariants = {};
-  products.forEach(p => { selectedVariants[p.id] = p.variantId; });
 
   let cart = {};
   function proPrice(p) { return p * (1 - DISCOUNT); }
@@ -891,49 +844,75 @@
   function renderVariants(p) {
     if (!p.variants) return '';
     const selectedId = selectedVariants[p.id];
+    const selectedV = getSelectedVariant(p);
+    const opts = p.options || [];
 
-    // For hoodie: group by color, show color swatches + size pills
-    if (p.id === 4) {
-      const colors = [...new Map(p.variants.map(v => [v.color, v])).values()];
-      const selectedV = getSelectedVariant(p);
-      const selectedColor = selectedV?.color;
-      const sizesForColor = p.variants.filter(v => v.color === selectedColor);
+    // Detect if product has both Color + Size options (2-option layout)
+    const colorIdx = opts.findIndex(o => /color|colour/i.test(o));
+    const sizeIdx  = opts.findIndex(o => /size/i.test(o));
+    const hasBoth  = colorIdx >= 0 && sizeIdx >= 0;
 
+    if (hasBoth) {
+      // Group by color, show color swatches + size pills for selected color
+      const colorKey = colorIdx === 0 ? 'option1' : 'option2';
+      const sizeKey  = sizeIdx  === 0 ? 'option1' : 'option2';
+      const colors = [...new Map(p.variants.map(v => [v[colorKey], v])).values()];
+      const selectedColor = selectedV?.[colorKey];
+      const sizesForColor = p.variants.filter(v => v[colorKey] === selectedColor);
       return `
         <div class="variant-row" style="margin-bottom:3px">
-          ${colors.map(c => `
-            <div class="variant-swatch${c.color === selectedColor ? ' active' : ''}"
-              style="background:${c.color};${c.border ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : ''}"
-              onclick="selectVariantColor(${p.id}, '${c.color}')"
-              onmouseenter="showTip(this,'${c.label.split(' / ')[0]}')${c.image ? `;hoverImage(${p.id},'${c.image}')` : ''}"
+          ${colors.map(c => {
+            const hex = getColorHex(c[colorKey]);
+            const border = isLightColor(hex) ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : '';
+            return `<div class="variant-swatch${c[colorKey] === selectedColor ? ' active' : ''}"
+              style="background:${hex};${border}"
+              onclick="selectVariantColor(${p.id}, '${c[colorKey].replace(/'/g,"\\'")}', '${colorKey}', '${sizeKey}')"
+              onmouseenter="showTip(this,'${c[colorKey].replace(/'/g,"\\'")}')${c.image ? `;hoverImage(${p.id},'${c.image}')` : ''}"
               onmouseleave="hideTip()${c.image ? `;resetImage(${p.id})` : ''}">
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>
         <div class="variant-row">
           ${sizesForColor.map(v => `
             <span class="variant-text${v.id === selectedId ? ' active' : ''}"
-              onclick="selectVariant(${p.id}, ${v.id})">${v.subLabel}</span>`).join('')}
+              onclick="selectVariant(${p.id}, ${v.id})">${v[sizeKey]}</span>`).join('')}
         </div>`;
     }
 
-    // Default: simple swatches
+    // Color-only swatches
+    if (colorIdx >= 0) {
+      const colorKey = colorIdx === 0 ? 'option1' : colorIdx === 1 ? 'option2' : 'option3';
+      return `<div class="variant-row">
+        ${p.variants.map(v => {
+          const hex = getColorHex(v[colorKey]);
+          const border = isLightColor(hex) ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : '';
+          return `<div class="variant-swatch${v.id === selectedId ? ' active' : ''}"
+            style="background:${hex};${border}"
+            onclick="selectVariant(${p.id}, ${v.id})"
+            onmouseenter="showTip(this,'${v[colorKey].replace(/'/g,"\\'")}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
+            onmouseleave="hideTip()${v.image ? `;resetImage(${p.id})` : ''}">
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    // Size-only or generic text pills
+    const labelKey = sizeIdx >= 0
+      ? (sizeIdx === 0 ? 'option1' : 'option2')
+      : 'option1';
     return `<div class="variant-row">
       ${p.variants.map(v => `
-        <div class="variant-swatch${v.id === selectedId ? ' active' : ''}"
-          style="background:${v.color};${v.border ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : ''}"
-          onclick="selectVariant(${p.id}, ${v.id})"
-          onmouseenter="showTip(this,'${v.label}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
-          onmouseleave="hideTip()${v.image ? `;resetImage(${p.id})` : ''}">
-        </div>`).join('')}
+        <span class="variant-text${v.id === selectedId ? ' active' : ''}"
+          onclick="selectVariant(${p.id}, ${v.id})">${v[labelKey] || v.label}</span>`).join('')}
     </div>`;
   }
 
-  function selectVariantColor(productId, color) {
+  function selectVariantColor(productId, colorValue, colorKey, sizeKey) {
     const p = products.find(x => x.id === productId);
     const currentV = getSelectedVariant(p);
-    const currentSize = currentV?.subLabel || 'S';
-    const match = p.variants.find(v => v.color === color && v.subLabel === currentSize)
-                || p.variants.find(v => v.color === color);
+    const currentSize = currentV?.[sizeKey];
+    const match = p.variants.find(v => v[colorKey] === colorValue && v[sizeKey] === currentSize)
+                || p.variants.find(v => v[colorKey] === colorValue);
     if (match) selectVariant(productId, match.id);
   }
 
@@ -1149,8 +1128,29 @@
     setTimeout(() => t.classList.remove('show'), 2000);
   }
 
-  renderProducts();
-  updateCartUI();
+  async function loadProducts() {
+    const grid = document.getElementById('product-grid');
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 0;color:var(--dim);">
+      <div style="font-size:13px;letter-spacing:0.05em;">Loading products…</div>
+    </div>`;
+    try {
+      const res = await fetch('/.netlify/functions/get-products');
+      if (!res.ok) throw new Error('Failed to load');
+      const data = await res.json();
+      products = data.products;
+      products.forEach(p => { selectedVariants[p.id] = p.variantId; });
+      renderProducts();
+      updateCartUI();
+    } catch (err) {
+      console.error('Failed to load products:', err);
+      grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px 0;color:var(--dim);">
+        <div style="font-size:13px;">Unable to load products. Please try again.</div>
+        <button onclick="loadProducts()" style="margin-top:16px;background:var(--gold);color:#1a1f1c;border:none;padding:10px 24px;border-radius:8px;font-weight:700;cursor:pointer;">Retry</button>
+      </div>`;
+    }
+  }
+
+  loadProducts();
 </script>
 </body>
 </html>

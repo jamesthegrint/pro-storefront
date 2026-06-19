@@ -1,0 +1,94 @@
+/**
+ * Netlify Function: get-products
+ *
+ * Returns all active Shopify products tagged "pro-storefront".
+ * Tag any product in Shopify Admin → Products → Tags with "pro-storefront"
+ * to have it appear in the PRO storefront automatically.
+ *
+ * Required env vars:
+ *   SHOPIFY_STORE_DOMAIN   e.g. af0140-2.myshopify.com
+ *   SHOPIFY_ADMIN_TOKEN    Admin API access token (shpat_...)
+ */
+
+const SHOPIFY_API_VERSION = '2024-04';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+function respond(statusCode, body) {
+  return {
+    statusCode,
+    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    body: JSON.stringify(body),
+  };
+}
+
+exports.handler = async function (event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: corsHeaders, body: '' };
+  }
+
+  const { SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN } = process.env;
+  if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN) {
+    console.error('Missing env vars');
+    return respond(500, { error: 'Server misconfiguration' });
+  }
+
+  try {
+    const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=pro-storefront&limit=50&status=active`;
+    const res = await fetch(url, {
+      headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN },
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.error('Shopify error:', res.status, err);
+      return respond(502, { error: 'Failed to fetch products' });
+    }
+
+    const data = await res.json();
+
+    const products = data.products.map(p => {
+      const firstVariant = p.variants[0];
+      const hasVariants = p.variants.length > 1;
+
+      // Build image lookup by image_id for variant-specific images
+      const imageById = {};
+      p.images.forEach(img => { imageById[img.id] = img.src; });
+      const mainImage = p.image?.src || p.images[0]?.src || '';
+
+      let variants = null;
+      if (hasVariants) {
+        variants = p.variants.map(v => ({
+          id: v.id,
+          label: v.title,
+          option1: v.option1 || null,
+          option2: v.option2 || null,
+          option3: v.option3 || null,
+          price: parseFloat(v.price),
+          available: v.available,
+          image: v.image_id ? (imageById[v.image_id] || mainImage) : mainImage,
+        }));
+      }
+
+      return {
+        id: p.id,
+        name: p.title,
+        price: parseFloat(firstVariant.price),
+        available: p.variants.some(v => v.available),
+        image: mainImage,
+        variantId: firstVariant.id,
+        variants,
+        options: p.options.map(o => o.name), // e.g. ['Color', 'Size'] or ['Title']
+      };
+    });
+
+    return respond(200, { products });
+  } catch (err) {
+    console.error('Unexpected error:', err);
+    return respond(500, { error: 'Internal server error' });
+  }
+};
