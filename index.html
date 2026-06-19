@@ -295,6 +295,63 @@
       cursor: not-allowed;
       box-shadow: none;
     }
+
+    /* ─── Variant Selectors ─── */
+    .variant-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: wrap;
+      margin-top: 2px;
+    }
+    .variant-swatch {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, border-color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+    .variant-swatch:hover, .variant-swatch.active {
+      border-color: var(--gold);
+      transform: scale(1.15);
+    }
+    .variant-swatch .swatch-tip { display: none; }
+    #swatch-tooltip {
+      position: fixed;
+      background: rgba(0,0,0,0.88);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      white-space: nowrap;
+      padding: 3px 7px;
+      border-radius: 4px;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    #swatch-tooltip.visible { opacity: 1; }
+    /* Text variant (for sizes) */
+    .variant-text {
+      font-size: 9.5px;
+      font-weight: 700;
+      color: var(--gray);
+      background: var(--bg-card2);
+      border: 1.5px solid rgba(255,255,255,0.08);
+      border-radius: 5px;
+      padding: 2px 6px;
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .variant-text:hover, .variant-text.active {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
     .product-info {
       padding: 12px 12px 13px;
       flex: 1;
@@ -732,42 +789,176 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<!-- Global swatch tooltip -->
+<div id="swatch-tooltip"></div>
+
 <script>
   const DISCOUNT = 0.15;
 
   const products = [
-    { id:1, variantId:49035993448732, name:'Swingman Rangefinder', price:149.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Social_Posts_ads-9.png', handle:'swingman-rangefinder', available:true },
-    { id:2, variantId:53948491104540, name:'Swingman Autograph Rangefinder', price:299.99, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/194.png', handle:'swingman-autograph-rangefinder', available:true },
-    { id:3, variantId:50536501772572, name:'TheGrint Starter Pack', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/54.png', handle:'thegrint-pro-golf-kit', available:false },
-    { id:4, variantId:52707292479772, name:'TheGrint Hoodie', price:45.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png', handle:'thegrint-hoodie', available:true },
-    { id:5, variantId:53039173107996, name:'Golf Cart Phone Mount', price:20.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/134.png', handle:'thegrint-golf-cart-phone-mount', available:true },
-    { id:6, variantId:52404819853596, name:'TheGrint Caddy Towel', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png', handle:'thegrint-caddie-towel', available:true },
-    { id:7, variantId:53298872385820, name:'Shield Performance Hat', price:30.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png', handle:'thegrint-shield-performance-hat', available:true },
-    { id:8, variantId:47061150368028, name:'TheGrint Ball Marker', price:12.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png', handle:'thegrint-ball-marker', available:false },
+    {
+      id:1, name:'Swingman Rangefinder', price:149.99, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Social_Posts_ads-9.png',
+      variants: null, variantId:49035993448732,
+    },
+    {
+      id:2, name:'Swingman Autograph Rangefinder', price:299.99, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/194.png',
+      variants: null, variantId:53948491104540,
+    },
+    {
+      id:3, name:'TheGrint Starter Pack', price:45.00, available:false,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/54.png',
+      variants: null, variantId:50536501772572,
+    },
+    {
+      id:4, name:'TheGrint Hoodie', price:45.00, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png',
+      variants: [
+        { id:52707292479772,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:52707292512540,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:52707292545308,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:52707292578076,  label:'Sand / Gray Logo', type:'color', color:'#c8b89a', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:53351304266012,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:53351304298780,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:53351304331548,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:53351304364316,  label:'Sand / White Logo', type:'color', color:'#d9cbb5', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/42.png' },
+        { id:53351304397084,  label:'Navy / S',  type:'color', color:'#1a2f4a', subLabel:'S',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
+        { id:53351304429852,  label:'Navy / M',  type:'color', color:'#1a2f4a', subLabel:'M',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
+        { id:53351304462620,  label:'Navy / L',  type:'color', color:'#1a2f4a', subLabel:'L',  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
+        { id:53351304495388,  label:'Navy / XL', type:'color', color:'#1a2f4a', subLabel:'XL', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Heather_Navy_Sweatshirt_cb94a577-d296-4ecd-ba2e-8cb6ddd1f8a2.png' },
+      ],
+      variantId: 52707292479772,
+    },
+    {
+      id:5, name:'Golf Cart Phone Mount', price:20.00, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/134.png',
+      variants: null, variantId:53039173107996,
+    },
+    {
+      id:6, name:'TheGrint Caddy Towel', price:30.00, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png',
+      variants: [
+        { id:52404819853596, label:'Navy',  type:'color', color:'#1a2f4a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_blue_towel_71530dc7-103f-48dc-94a2-a475b262e256.png' },
+        { id:52404819820828, label:'White', type:'color', color:'#f0f0f0', border:true, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/updated_white_towel.png' },
+      ],
+      variantId: 52404819853596,
+    },
+    {
+      id:7, name:'Shield Performance Hat', price:30.00, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png',
+      variants: [
+        { id:53298872385820, label:'Gray',  type:'color', color:'#8a8a8a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/16_6d7c4f6b-4f61-4581-9ca8-396b30180d29.png' },
+        { id:53298872418588, label:'Navy',  type:'color', color:'#1a2f4a', image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/14_64cd83eb-d268-44c1-8767-5a0fc9045e6c.png' },
+        { id:53298872451356, label:'White', type:'color', color:'#f0f0f0', border:true, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/18_74fbf729-2133-4945-91fe-3b6acd22e075.png' },
+      ],
+      variantId: 53298872385820,
+    },
+    {
+      id:8, name:'TheGrint Ball Marker', price:12.00, available:true,
+      image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png',
+      variants: [
+        { id:47061150368028, label:'Gold (PRO)', type:'color', color:'#c9a84c', price:12.00, image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/PRO_Coin_Gold_Front.png' },
+        { id:53259571560732, label:'Silver',     type:'color', color:'#a8a8a8', price:9.00,  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Silver_Coin_Front.png' },
+        { id:53259571593500, label:'Bronze',     type:'color', color:'#a0694a', price:9.00,  image:'https://cdn.shopify.com/s/files/1/0809/9220/7132/files/Bronze_Coin_Front.png' },
+      ],
+      variantId: 47061150368028,
+    },
   ];
+
+  // Track selected variant per product
+  const selectedVariants = {};
+  products.forEach(p => { selectedVariants[p.id] = p.variantId; });
 
   let cart = {};
   function proPrice(p) { return p * (1 - DISCOUNT); }
   function fmt(n) { return '$' + n.toFixed(2); }
 
+  function getSelectedVariant(p) {
+    if (!p.variants) return null;
+    return p.variants.find(v => v.id === selectedVariants[p.id]) || p.variants[0];
+  }
+
+  function selectVariant(productId, variantId) {
+    selectedVariants[productId] = variantId;
+    // If already in cart, update the variant
+    if (cart[productId]) cart[productId] = { qty: cart[productId].qty || cart[productId], variantId };
+    renderProducts();
+    updateCartUI();
+    if (document.getElementById('cart-drawer').classList.contains('show')) renderCartDrawer();
+  }
+
+  function renderVariants(p) {
+    if (!p.variants) return '';
+    const selectedId = selectedVariants[p.id];
+
+    // For hoodie: group by color, show color swatches + size pills
+    if (p.id === 4) {
+      const colors = [...new Map(p.variants.map(v => [v.color, v])).values()];
+      const selectedV = getSelectedVariant(p);
+      const selectedColor = selectedV?.color;
+      const sizesForColor = p.variants.filter(v => v.color === selectedColor);
+
+      return `
+        <div class="variant-row" style="margin-bottom:3px">
+          ${colors.map(c => `
+            <div class="variant-swatch${c.color === selectedColor ? ' active' : ''}"
+              style="background:${c.color};${c.border ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : ''}"
+              onclick="selectVariantColor(${p.id}, '${c.color}')"
+              onmouseenter="showTip(this,'${c.label.split(' / ')[0]}')${c.image ? `;hoverImage(${p.id},'${c.image}')` : ''}"
+              onmouseleave="hideTip()${c.image ? `;resetImage(${p.id})` : ''}">
+            </div>`).join('')}
+        </div>
+        <div class="variant-row">
+          ${sizesForColor.map(v => `
+            <span class="variant-text${v.id === selectedId ? ' active' : ''}"
+              onclick="selectVariant(${p.id}, ${v.id})">${v.subLabel}</span>`).join('')}
+        </div>`;
+    }
+
+    // Default: simple swatches
+    return `<div class="variant-row">
+      ${p.variants.map(v => `
+        <div class="variant-swatch${v.id === selectedId ? ' active' : ''}"
+          style="background:${v.color};${v.border ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : ''}"
+          onclick="selectVariant(${p.id}, ${v.id})"
+          onmouseenter="showTip(this,'${v.label}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
+          onmouseleave="hideTip()${v.image ? `;resetImage(${p.id})` : ''}">
+        </div>`).join('')}
+    </div>`;
+  }
+
+  function selectVariantColor(productId, color) {
+    const p = products.find(x => x.id === productId);
+    const currentV = getSelectedVariant(p);
+    const currentSize = currentV?.subLabel || 'S';
+    const match = p.variants.find(v => v.color === color && v.subLabel === currentSize)
+                || p.variants.find(v => v.color === color);
+    if (match) selectVariant(productId, match.id);
+  }
+
   function renderProducts() {
     document.getElementById('product-grid').innerHTML = products.map(p => {
-      const pro = proPrice(p.price);
-      const qty = cart[p.id] || 0;
+      const selectedV = getSelectedVariant(p);
+      const activePrice = selectedV?.price ?? p.price;
+      const activeImage = selectedV?.image ?? p.image;
+      const pro = proPrice(activePrice);
+      const qty = cart[p.id]?.qty ?? cart[p.id] ?? 0;
       return `
         <div class="product-card${p.available ? '' : ' unavailable'}" id="card-${p.id}">
           <div class="product-img-wrap">
-            <img src="${p.image}" alt="${p.name}" loading="lazy" />
+            <img src="${activeImage}" alt="${p.name}" loading="lazy" id="img-${p.id}" />
             <div class="pro-ribbon">PRO</div>
             ${!p.available ? `<div class="out-of-stock-overlay"><span class="out-of-stock-tag">Out of Stock</span></div>` : ''}
           </div>
           <div class="product-info">
             <div class="product-name">${p.name}</div>
             <div class="price-row">
-              <span class="price-original">${fmt(p.price)}</span>
+              <span class="price-original">${fmt(activePrice)}</span>
               <span class="price-pro">${fmt(pro)}</span>
               ${p.available ? `<span class="savings-tag">-15%</span>` : ''}
             </div>
+            ${renderVariants(p)}
             ${!p.available
               ? `<button class="add-btn" disabled>Out of Stock</button>`
               : qty === 0
@@ -784,15 +975,20 @@
   }
 
   function addToCart(id) {
-    cart[id] = 1;
+    const p = products.find(x => x.id === id);
+    const variantId = selectedVariants[id] || p.variantId;
+    cart[id] = { qty: 1, variantId };
     renderProducts();
     updateCartUI();
     showToast('Added to cart ✓');
   }
 
   function changeQty(id, delta) {
-    const q = (cart[id] || 0) + delta;
-    if (q <= 0) delete cart[id]; else cart[id] = q;
+    const entry = cart[id];
+    const currentQty = entry?.qty ?? entry ?? 0;
+    const newQty = currentQty + delta;
+    if (newQty <= 0) delete cart[id];
+    else cart[id] = { qty: newQty, variantId: entry?.variantId ?? selectedVariants[id] };
     renderProducts();
     updateCartUI();
     if (Object.keys(cart).length > 0 && document.getElementById('cart-drawer').classList.contains('show')) renderCartDrawer();
@@ -800,10 +996,14 @@
 
   function cartTotals() {
     let orig = 0, pro = 0, qty = 0;
-    for (const [id, q] of Object.entries(cart)) {
+    for (const [id, entry] of Object.entries(cart)) {
       const p = products.find(x => x.id === parseInt(id));
       if (!p) continue;
-      orig += p.price * q; pro += proPrice(p.price) * q; qty += q;
+      const q = entry?.qty ?? entry;
+      const variantId = entry?.variantId ?? p.variantId;
+      const variant = p.variants?.find(v => v.id === variantId);
+      const price = variant?.price ?? p.price;
+      orig += price * q; pro += proPrice(price) * q; qty += q;
     }
     return { orig, pro, savings: orig - pro, qty };
   }
@@ -823,26 +1023,38 @@
 
   function renderCartDrawer() {
     const { orig, pro, savings } = cartTotals();
-    const items = Object.entries(cart).map(([id,q]) => ({ p: products.find(x => x.id === parseInt(id)), q })).filter(x => x.p);
+    const items = Object.entries(cart).map(([id, entry]) => {
+      const p = products.find(x => x.id === parseInt(id));
+      const q = entry?.qty ?? entry;
+      const variantId = entry?.variantId ?? p?.variantId;
+      const variant = p?.variants?.find(v => v.id === variantId);
+      return { p, q, variant };
+    }).filter(x => x.p);
     const el = document.getElementById('drawer-items');
     const sum = document.getElementById('cart-summary');
     if (!items.length) {
       el.innerHTML = `<div class="empty-cart"><div class="empty-cart-icon">🛒</div><p><strong>Your cart is empty</strong><br>Add some PRO-exclusive gear above!</p></div>`;
       sum.innerHTML = ''; return;
     }
-    el.innerHTML = items.map(({p, q}) => `
+    el.innerHTML = items.map(({p, q, variant}) => {
+      const price = variant?.price ?? p.price;
+      const image = variant?.image ?? p.image;
+      const subtitle = variant ? `<div style="font-size:10px;color:var(--gray);margin-top:1px">${variant.label}</div>` : '';
+      return `
       <div class="cart-item">
-        <img class="cart-item-img" src="${p.image}" alt="${p.name}" />
+        <img class="cart-item-img" src="${image}" alt="${p.name}" />
         <div class="cart-item-details">
           <div class="cart-item-name">${p.name}</div>
-          <div class="cart-item-price">${fmt(proPrice(p.price))} ea <span class="cart-item-orig">${fmt(p.price)}</span></div>
+          ${subtitle}
+          <div class="cart-item-price">${fmt(proPrice(price))} ea <span class="cart-item-orig">${fmt(price)}</span></div>
         </div>
         <div class="cart-item-qty">
           <button class="cq-btn" onclick="changeQty(${p.id},-1);renderCartDrawer();">−</button>
           <span class="cq-num">${q}</span>
           <button class="cq-btn" onclick="changeQty(${p.id},1);renderCartDrawer();">+</button>
         </div>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     sum.innerHTML = `
       <div class="summary-row"><span>Retail subtotal</span><span>${fmt(orig)}</span></div>
       <div class="summary-row savings"><span>PRO Member Savings (15%)</span><span>−${fmt(savings)}</span></div>
@@ -874,9 +1086,11 @@
     if (stickyBtn) { stickyBtn.textContent = 'Loading…'; stickyBtn.disabled = true; }
 
     // Build item payload for the function
-    const payload = items.map(([id, qty]) => {
+    const payload = items.map(([id, entry]) => {
       const p = products.find(x => x.id === parseInt(id));
-      return { variantId: p.variantId, quantity: qty };
+      const qty = entry?.qty ?? entry;
+      const variantId = entry?.variantId ?? p.variantId;
+      return { variantId, quantity: qty };
     });
 
     // Open window immediately (must be in the same call stack as the click
@@ -905,6 +1119,28 @@
     if (stickyBtn) { stickyBtn.textContent = 'View Cart →'; stickyBtn.disabled = false; }
 
     win.location.href = checkoutUrl;
+  }
+
+  const tooltip = document.getElementById('swatch-tooltip');
+  function showTip(el, text) {
+    const r = el.getBoundingClientRect();
+    tooltip.textContent = text;
+    tooltip.classList.add('visible');
+    tooltip.style.left = (r.left + r.width / 2 - tooltip.offsetWidth / 2) + 'px';
+    tooltip.style.top  = (r.top - tooltip.offsetHeight - 6) + 'px';
+  }
+  function hideTip() { tooltip.classList.remove('visible'); }
+
+  function hoverImage(productId, imageUrl) {
+    const img = document.getElementById(`img-${productId}`);
+    if (img) img.src = imageUrl;
+  }
+
+  function resetImage(productId) {
+    const p = products.find(x => x.id === productId);
+    const selectedV = getSelectedVariant(p);
+    const img = document.getElementById(`img-${productId}`);
+    if (img) img.src = selectedV?.image ?? p.image;
   }
 
   function showToast(msg) {
