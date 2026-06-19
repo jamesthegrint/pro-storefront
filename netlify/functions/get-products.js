@@ -82,12 +82,14 @@ exports.handler = async function (event) {
       return {
         id: p.id,
         name: p.title,
+        description: p.body_html || '',
         price: parseFloat(firstVariant.price),
         available: p.variants.some(v => v.inventory_quantity > 0 || v.inventory_policy === 'continue'),
         image: mainImage,
+        images: p.images.map(img => img.src),
         variantId: firstVariant.id,
         variants,
-        options: p.options.map(o => o.name), // e.g. ['Color', 'Size'] or ['Title']
+        options: p.options.map(o => o.name),
       };
     });
 

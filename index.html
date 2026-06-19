@@ -710,6 +710,109 @@
       pointer-events: none;
     }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    /* ─── Product Detail Modal ─── */
+    #product-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    #product-modal.show { display: flex; }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+    }
+    .modal-sheet {
+      position: relative;
+      z-index: 1;
+      background: var(--bg-card);
+      border-radius: 24px 24px 0 0;
+      width: 100%;
+      max-width: 600px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
+      animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to   { transform: translateY(0); }
+    }
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 2px;
+      margin: 12px auto 0;
+      flex-shrink: 0;
+    }
+    .modal-scroll {
+      overflow-y: auto;
+      padding: 16px 20px 32px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .modal-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      background: var(--bg-card2);
+      border-radius: 16px;
+      margin-bottom: 16px;
+    }
+    .modal-img-thumbs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .modal-img-thumbs::-webkit-scrollbar { display: none; }
+    .modal-thumb {
+      width: 60px; height: 60px;
+      flex-shrink: 0;
+      border-radius: 10px;
+      object-fit: cover;
+      background: var(--bg-card2);
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .modal-thumb.active { border-color: var(--gold); }
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .modal-price-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .modal-price-orig {
+      font-size: 14px;
+      color: var(--dim);
+      text-decoration: line-through;
+    }
+    .modal-price-pro {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--gold);
+    }
+    .modal-desc {
+      font-size: 13px;
+      line-height: 1.7;
+      color: var(--off-white);
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 14px;
+    }
+    .modal-desc p { margin-bottom: 10px; }
+    .modal-desc strong, .modal-desc b { color: var(--gold-lt); }
+    .modal-desc ul, .modal-desc ol { padding-left: 18px; margin-bottom: 10px; }
   </style>
 </head>
 <body>
@@ -791,6 +894,24 @@
 
 <!-- Global swatch tooltip -->
 <div id="swatch-tooltip"></div>
+
+<!-- Product Detail Modal -->
+<div id="product-modal">
+  <div class="modal-backdrop" onclick="closeModal()"></div>
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-scroll">
+      <img class="modal-img" id="modal-main-img" src="" alt="" />
+      <div class="modal-img-thumbs" id="modal-thumbs"></div>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-price-row">
+        <span class="modal-price-orig" id="modal-price-orig"></span>
+        <span class="modal-price-pro" id="modal-price-pro"></span>
+      </div>
+      <div class="modal-desc" id="modal-desc"></div>
+    </div>
+  </div>
+</div>
 
 <script>
   const DISCOUNT = 0.15;
@@ -925,7 +1046,7 @@
       const qty = cart[p.id]?.qty ?? cart[p.id] ?? 0;
       return `
         <div class="product-card${p.available ? '' : ' unavailable'}" id="card-${p.id}">
-          <div class="product-img-wrap">
+          <div class="product-img-wrap" onclick="openModal(${p.id})" style="cursor:pointer;">
             <img src="${activeImage}" alt="${p.name}" loading="lazy" id="img-${p.id}" />
             <div class="pro-ribbon">PRO</div>
             ${!p.available ? `<div class="out-of-stock-overlay"><span class="out-of-stock-tag">Out of Stock</span></div>` : ''}
@@ -1099,6 +1220,44 @@
 
     win.location.href = checkoutUrl;
   }
+
+  function openModal(productId) {
+    const p = products.find(x => x.id === productId);
+    if (!p) return;
+    const selectedV = getSelectedVariant(p);
+    const activePrice = selectedV?.price ?? p.price;
+    const activeImage = selectedV?.image ?? p.image;
+
+    document.getElementById('modal-main-img').src = activeImage;
+    document.getElementById('modal-main-img').alt = p.name;
+    document.getElementById('modal-title').textContent = p.name;
+    document.getElementById('modal-price-orig').textContent = fmt(activePrice);
+    document.getElementById('modal-price-pro').textContent = fmt(proPrice(activePrice));
+    document.getElementById('modal-desc').innerHTML = p.description || '<p style="color:var(--dim)">No description available.</p>';
+
+    // Thumbnails — use all product images if available
+    const thumbs = document.getElementById('modal-thumbs');
+    const allImages = p.images?.length ? p.images : [p.image];
+    thumbs.innerHTML = allImages.length > 1 ? allImages.map((src, i) => `
+      <img class="modal-thumb${i === 0 ? ' active' : ''}" src="${src}" alt=""
+        onclick="modalThumbClick(this, '${src}')" />`).join('') : '';
+
+    document.getElementById('product-modal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function modalThumbClick(el, src) {
+    document.getElementById('modal-main-img').src = src;
+    document.querySelectorAll('.modal-thumb').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('product-modal').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   const tooltip = document.getElementById('swatch-tooltip');
   function showTip(el, text) {
