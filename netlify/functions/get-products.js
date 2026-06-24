@@ -60,7 +60,7 @@ async function fetchByCollection(handle, tag, token) {
   if (collectionId) {
     // Fetch products in collection order (respects manual sort)
     const res = await shopifyFetch(
-      `/products.json?collection_id=${collectionId}&limit=50&status=active`,
+      `/collections/${collectionId}/products.json?limit=50`,
       token
     );
     if (res.ok) {
