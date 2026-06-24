@@ -38,9 +38,9 @@ function respond(statusCode, body) {
 }
 
 async function fetchByTag(tag, token) {
-  const res = await shopifyFetch(
-    `/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
-    token
+  const res = await fetch(
+    `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
+    { headers: { 'X-Shopify-Access-Token': token } }
   );
   if (!res.ok) throw new Error(`Shopify tag fetch failed: ${res.status}`);
   const data = await res.json();
