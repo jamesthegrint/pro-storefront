@@ -1,11 +1,20 @@
 /**
  * Netlify Function: get-products
  *
- * Returns two product lists:
- *   - proProducts:  tagged "pro-storefront"      → shown with 15% PRO discount
- *   - alsoProducts: tagged "pro-storefront-full" → shown at full price
+ * Returns two product lists ordered by Shopify collection manual sort:
+ *   - proProducts:  collection "pro-storefront"      → shown with 15% PRO discount
+ *   - alsoProducts: collection "pro-storefront-full" → shown at full price
  *
- * Tag products in Shopify Admin → Products → Tags.
+ * Tags are used as a secondary filter — a product must have the matching tag
+ * AND be in the collection to appear. This lets you control order via the
+ * collection's drag-to-reorder and control visibility via tags.
+ *
+ * Setup in Shopify Admin:
+ *   1. Products → Collections → Create collection
+ *      - Title: "PRO Storefront", Handle: pro-storefront, Sort: Manual
+ *   2. Create another: "PRO Storefront Full", Handle: pro-storefront-full, Sort: Manual
+ *   3. Add products to each collection and drag to desired order
+ *   4. Also tag each product with the matching tag (pro-storefront / pro-storefront-full)
  *
  * Required env vars:
  *   SHOPIFY_STORE_DOMAIN   e.g. af0140-2.myshopify.com
@@ -28,6 +37,54 @@ function respond(statusCode, body) {
   };
 }
 
+const shopifyFetch = (path, token) =>
+  fetch(`https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}${path}`, {
+    headers: { 'X-Shopify-Access-Token': token },
+  });
+
+async function getCollectionId(handle, token) {
+  // Try custom collections first, then smart collections
+  for (const type of ['custom_collections', 'smart_collections']) {
+    const res = await shopifyFetch(`/${type}.json?handle=${handle}&limit=1`, token);
+    if (!res.ok) continue;
+    const data = await res.json();
+    const key = type === 'custom_collections' ? 'custom_collections' : 'smart_collections';
+    if (data[key]?.length) return data[key][0].id;
+  }
+  return null;
+}
+
+async function fetchByCollection(handle, tag, token) {
+  const collectionId = await getCollectionId(handle, token);
+
+  if (collectionId) {
+    // Fetch products in collection order (respects manual sort)
+    const res = await shopifyFetch(
+      `/products.json?collection_id=${collectionId}&limit=50&status=active`,
+      token
+    );
+    if (res.ok) {
+      const data = await res.json();
+      // Tag filter as secondary guard
+      return data.products.filter(p =>
+        p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
+      );
+    }
+  }
+
+  // Fallback: fetch by tag only (no ordering guarantee)
+  console.warn(`Collection "${handle}" not found — falling back to tag-only fetch`);
+  const res = await shopifyFetch(
+    `/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
+    token
+  );
+  if (!res.ok) throw new Error(`Shopify tag fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data.products.filter(p =>
+    p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
+  );
+}
+
 exports.handler = async function (event) {
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: corsHeaders, body: '' };
@@ -40,26 +97,15 @@ exports.handler = async function (event) {
   }
 
   try {
-    const fetchTag = async (tag) => {
-      const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`;
-      const res = await fetch(url, { headers: { 'X-Shopify-Access-Token': SHOPIFY_ADMIN_TOKEN } });
-      if (!res.ok) throw new Error(`Shopify ${res.status}`);
-      const data = await res.json();
-      return data.products.filter(p =>
-        p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
-      );
-    };
-
     const [proRaw, alsoRaw] = await Promise.all([
-      fetchTag('pro-storefront'),
-      fetchTag('pro-storefront-full'),
+      fetchByCollection('pro-storefront', 'pro-storefront', SHOPIFY_ADMIN_TOKEN),
+      fetchByCollection('pro-storefront-full', 'pro-storefront-full', SHOPIFY_ADMIN_TOKEN),
     ]);
 
     const mapProduct = (p) => {
       const firstVariant = p.variants[0];
       const hasVariants = p.variants.length > 1;
 
-      // Build image lookup by image_id for variant-specific images
       const imageById = {};
       p.images.forEach(img => { imageById[img.id] = img.src; });
       const mainImage = p.image?.src || p.images[0]?.src || '';
@@ -92,10 +138,10 @@ exports.handler = async function (event) {
       };
     };
 
-    const proProducts  = proRaw.map(mapProduct);
-    const alsoProducts = alsoRaw.map(mapProduct);
-
-    return respond(200, { proProducts, alsoProducts });
+    return respond(200, {
+      proProducts:  proRaw.map(mapProduct),
+      alsoProducts: alsoRaw.map(mapProduct),
+    });
   } catch (err) {
     console.error('Unexpected error:', err);
     return respond(500, { error: 'Internal server error' });
