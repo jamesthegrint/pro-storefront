@@ -43,13 +43,11 @@ const shopifyFetch = (path, token) =>
   });
 
 async function getCollectionId(handle, token) {
-  // Try custom collections first, then smart collections
-  for (const type of ['custom_collections', 'smart_collections']) {
-    const res = await shopifyFetch(`/${type}.json?handle=${handle}&limit=1`, token);
-    if (!res.ok) continue;
+  // custom_collections covers manually-sorted collections
+  const res = await shopifyFetch(`/custom_collections.json?handle=${handle}&limit=1`, token);
+  if (res.ok) {
     const data = await res.json();
-    const key = type === 'custom_collections' ? 'custom_collections' : 'smart_collections';
-    if (data[key]?.length) return data[key][0].id;
+    if (data.custom_collections?.length) return data.custom_collections[0].id;
   }
   return null;
 }
@@ -99,10 +97,9 @@ exports.handler = async function (event) {
   }
 
   try {
-    const [proRaw, alsoRaw] = await Promise.all([
-      fetchByCollection('pro-storefront', 'pro-storefront', SHOPIFY_ADMIN_TOKEN),
-      fetchByCollection('pro-storefront-full', 'pro-storefront-full', SHOPIFY_ADMIN_TOKEN),
-    ]);
+    // Sequential to avoid hitting Shopify's rate limit (429)
+    const proRaw   = await fetchByCollection('pro-storefront', 'pro-storefront', SHOPIFY_ADMIN_TOKEN);
+    const alsoRaw  = await fetchByCollection('pro-storefront-full', 'pro-storefront-full', SHOPIFY_ADMIN_TOKEN);
 
     const mapProduct = (p) => {
       const firstVariant = p.variants[0];
