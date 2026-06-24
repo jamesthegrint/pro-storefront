@@ -107,6 +107,7 @@ exports.handler = async function (event) {
     const alsoRaw  = await fetchByCollection('pro-storefront-full', 'pro-storefront-full', SHOPIFY_ADMIN_TOKEN);
 
     const mapProduct = (p) => {
+      if (!p.variants?.length) return null;
       const firstVariant = p.variants[0];
       const hasVariants = p.variants.length > 1;
 
@@ -143,8 +144,8 @@ exports.handler = async function (event) {
     };
 
     return respond(200, {
-      proProducts:  proRaw.map(mapProduct),
-      alsoProducts: alsoRaw.map(mapProduct),
+      proProducts:  proRaw.map(mapProduct).filter(Boolean),
+      alsoProducts: alsoRaw.map(mapProduct).filter(Boolean),
     });
   } catch (err) {
     console.error('Unexpected error:', err);
