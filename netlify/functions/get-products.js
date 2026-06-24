@@ -43,11 +43,16 @@ const shopifyFetch = (path, token) =>
   });
 
 async function getCollectionId(handle, token) {
-  // custom_collections covers manually-sorted collections
-  const res = await shopifyFetch(`/custom_collections.json?handle=${handle}&limit=1`, token);
-  if (res.ok) {
-    const data = await res.json();
+  // Check custom collections first, then smart collections (sequential to avoid rate limits)
+  const customRes = await shopifyFetch(`/custom_collections.json?handle=${handle}&limit=1`, token);
+  if (customRes.ok) {
+    const data = await customRes.json();
     if (data.custom_collections?.length) return data.custom_collections[0].id;
+  }
+  const smartRes = await shopifyFetch(`/smart_collections.json?handle=${handle}&limit=1`, token);
+  if (smartRes.ok) {
+    const data = await smartRes.json();
+    if (data.smart_collections?.length) return data.smart_collections[0].id;
   }
   return null;
 }
