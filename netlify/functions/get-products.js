@@ -55,25 +55,27 @@ async function getCollectionId(handle, token) {
 }
 
 async function fetchByCollection(handle, tag, token) {
-  const collectionId = await getCollectionId(handle, token);
-
-  if (collectionId) {
-    // Fetch products in collection order (respects manual sort)
-    const res = await shopifyFetch(
-      `/collections/${collectionId}/products.json?limit=50`,
-      token
-    );
-    if (res.ok) {
-      const data = await res.json();
-      // Tag filter as secondary guard
-      return data.products.filter(p =>
-        p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
+  try {
+    const collectionId = await getCollectionId(handle, token);
+    if (collectionId) {
+      const res = await shopifyFetch(
+        `/collections/${collectionId}/products.json?limit=50`,
+        token
       );
+      if (res.ok) {
+        const data = await res.json();
+        const filtered = data.products.filter(p =>
+          p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
+        );
+        if (filtered.length > 0) return filtered;
+      }
     }
+  } catch (err) {
+    console.warn(`Collection fetch failed for "${handle}":`, err.message);
   }
 
-  // Fallback: fetch by tag only (no ordering guarantee)
-  console.warn(`Collection "${handle}" not found — falling back to tag-only fetch`);
+  // Fallback: fetch by tag only
+  console.warn(`Falling back to tag-only fetch for "${tag}"`);
   const res = await shopifyFetch(
     `/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
     token
