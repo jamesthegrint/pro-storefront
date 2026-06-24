@@ -1015,69 +1015,76 @@
     if (document.getElementById('cart-drawer').classList.contains('show')) renderCartDrawer();
   }
 
+  function optionKey(idx) { return idx === 0 ? 'option1' : idx === 1 ? 'option2' : 'option3'; }
+
   function renderVariants(p) {
     if (!p.variants) return '';
     const selectedId = selectedVariants[p.id];
     const selectedV = getSelectedVariant(p);
     const opts = p.options || [];
 
-    // Detect if product has both Color + Size options (2-option layout)
     const colorIdx = opts.findIndex(o => /color|colour/i.test(o));
     const sizeIdx  = opts.findIndex(o => /size/i.test(o));
-    const hasBoth  = colorIdx >= 0 && sizeIdx >= 0;
 
-    if (hasBoth) {
-      // Group by color, show color swatches + size pills for selected color
-      const colorKey = colorIdx === 0 ? 'option1' : 'option2';
-      const sizeKey  = sizeIdx  === 0 ? 'option1' : 'option2';
-      const colors = [...new Map(p.variants.map(v => [v[colorKey], v])).values()];
-      const selectedColor = selectedV?.[colorKey];
-      const sizesForColor = p.variants.filter(v => v[colorKey] === selectedColor);
+    // Two options: first groups rows, second filtered by selection
+    if (opts.length >= 2) {
+      const primaryIdx   = colorIdx >= 0 ? colorIdx : 0;
+      const secondaryIdx = colorIdx >= 0 ? (sizeIdx >= 0 ? sizeIdx : (primaryIdx === 0 ? 1 : 0))
+                                          : (sizeIdx >= 0 ? sizeIdx : 1);
+      const pk = optionKey(primaryIdx);
+      const sk = optionKey(secondaryIdx);
+      const isColor = primaryIdx === colorIdx;
+
+      const primaryValues = [...new Map(p.variants.map(v => [v[pk], v])).values()];
+      const selectedPrimary = selectedV?.[pk];
+      const secondaryForPrimary = p.variants.filter(v => v[pk] === selectedPrimary);
+
+      const primaryRow = primaryValues.map(v => {
+        if (isColor) {
+          const hex = getColorHex(v[pk]);
+          const border = isLightColor(hex) ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : '';
+          return `<div class="variant-swatch${v[pk] === selectedPrimary ? ' active' : ''}"
+            style="background:${hex};${border}"
+            onclick="selectVariantColor(${p.id}, '${v[pk].replace(/'/g,"\\'")}', '${pk}', '${sk}')"
+            onmouseenter="showTip(this,'${v[pk].replace(/'/g,"\\'")}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
+            onmouseleave="hideTip()${v.image ? `;resetImage(${p.id})` : ''}">
+          </div>`;
+        }
+        return `<span class="variant-text${v[pk] === selectedPrimary ? ' active' : ''}"
+          onclick="selectVariantColor(${p.id}, '${v[pk].replace(/'/g,"\\'")}', '${pk}', '${sk}')">${v[pk]}</span>`;
+      }).join('');
+
       return `
-        <div class="variant-row" style="margin-bottom:3px">
-          ${colors.map(c => {
-            const hex = getColorHex(c[colorKey]);
-            const border = isLightColor(hex) ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : '';
-            return `<div class="variant-swatch${c[colorKey] === selectedColor ? ' active' : ''}"
-              style="background:${hex};${border}"
-              onclick="selectVariantColor(${p.id}, '${c[colorKey].replace(/'/g,"\\'")}', '${colorKey}', '${sizeKey}')"
-              onmouseenter="showTip(this,'${c[colorKey].replace(/'/g,"\\'")}')${c.image ? `;hoverImage(${p.id},'${c.image}')` : ''}"
-              onmouseleave="hideTip()${c.image ? `;resetImage(${p.id})` : ''}">
-            </div>`;
-          }).join('')}
-        </div>
+        <div class="variant-row" style="margin-bottom:3px">${primaryRow}</div>
         <div class="variant-row">
-          ${sizesForColor.map(v => `
+          ${secondaryForPrimary.map(v => `
             <span class="variant-text${v.id === selectedId ? ' active' : ''}"
-              onclick="selectVariant(${p.id}, ${v.id})">${v[sizeKey]}</span>`).join('')}
+              onclick="selectVariant(${p.id}, ${v.id})">${v[sk]}</span>`).join('')}
         </div>`;
     }
 
     // Color-only swatches
     if (colorIdx >= 0) {
-      const colorKey = colorIdx === 0 ? 'option1' : colorIdx === 1 ? 'option2' : 'option3';
+      const ck = optionKey(colorIdx);
       return `<div class="variant-row">
         ${p.variants.map(v => {
-          const hex = getColorHex(v[colorKey]);
+          const hex = getColorHex(v[ck]);
           const border = isLightColor(hex) ? 'box-shadow:inset 0 0 0 1px rgba(255,255,255,0.3);' : '';
           return `<div class="variant-swatch${v.id === selectedId ? ' active' : ''}"
             style="background:${hex};${border}"
             onclick="selectVariant(${p.id}, ${v.id})"
-            onmouseenter="showTip(this,'${v[colorKey].replace(/'/g,"\\'")}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
+            onmouseenter="showTip(this,'${v[ck].replace(/'/g,"\\'")}')${v.image ? `;hoverImage(${p.id},'${v.image}')` : ''}"
             onmouseleave="hideTip()${v.image ? `;resetImage(${p.id})` : ''}">
           </div>`;
         }).join('')}
       </div>`;
     }
 
-    // Size-only or generic text pills
-    const labelKey = sizeIdx >= 0
-      ? (sizeIdx === 0 ? 'option1' : 'option2')
-      : 'option1';
+    // Single option — text pills
     return `<div class="variant-row">
       ${p.variants.map(v => `
         <span class="variant-text${v.id === selectedId ? ' active' : ''}"
-          onclick="selectVariant(${p.id}, ${v.id})">${v[labelKey] || v.label}</span>`).join('')}
+          onclick="selectVariant(${p.id}, ${v.id})">${v.option1 || v.label}</span>`).join('')}
     </div>`;
   }
 
