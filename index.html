@@ -1334,7 +1334,9 @@
 
   function modalAddToCart() {
     if (!_modalProductId) return;
-    addToCart(_modalProductId);
+    const p = allProducts().find(x => x.id === _modalProductId);
+    if (!p?.available) return;
+    addToCart(_modalProductId, products.some(x => x.id === _modalProductId));
     closeModal();
   }
 

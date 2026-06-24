@@ -73,7 +73,7 @@ exports.handler = async function (event) {
           option2: v.option2 || null,
           option3: v.option3 || null,
           price: parseFloat(v.price),
-          available: v.inventory_quantity > 0 || v.inventory_policy === 'continue',
+          available: !v.inventory_management || v.inventory_quantity > 0 || v.inventory_policy === 'continue',
           image: v.image_id ? (imageById[v.image_id] || mainImage) : mainImage,
         }));
       }
@@ -83,7 +83,7 @@ exports.handler = async function (event) {
         name: p.title,
         description: p.body_html || '',
         price: parseFloat(firstVariant.price),
-        available: p.variants.some(v => v.inventory_quantity > 0 || v.inventory_policy === 'continue'),
+        available: p.variants.some(v => !v.inventory_management || v.inventory_quantity > 0 || v.inventory_policy === 'continue'),
         image: mainImage,
         images: p.images.map(img => img.src),
         variantId: firstVariant.id,
