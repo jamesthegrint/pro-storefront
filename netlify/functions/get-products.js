@@ -37,64 +37,16 @@ function respond(statusCode, body) {
   };
 }
 
-const shopifyFetch = (path, token) =>
-  fetch(`https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}${path}`, {
-    headers: { 'X-Shopify-Access-Token': token },
-  });
-
-async function getCollectionId(handle, token) {
-  // Check custom collections first, then smart collections (sequential to avoid rate limits)
-  const customRes = await shopifyFetch(`/custom_collections.json?handle=${handle}&limit=1`, token);
-  if (customRes.ok) {
-    const data = await customRes.json();
-    if (data.custom_collections?.length) return data.custom_collections[0].id;
-  }
-  const smartRes = await shopifyFetch(`/smart_collections.json?handle=${handle}&limit=1`, token);
-  if (smartRes.ok) {
-    const data = await smartRes.json();
-    if (data.smart_collections?.length) return data.smart_collections[0].id;
-  }
-  return null;
-}
-
-async function fetchByCollection(handle, tag, token) {
-  // Always fetch full product data via tag (includes variants, images, etc.)
-  const tagRes = await shopifyFetch(
+async function fetchByTag(tag, token) {
+  const res = await shopifyFetch(
     `/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
     token
   );
-  if (!tagRes.ok) throw new Error(`Shopify tag fetch failed: ${tagRes.status}`);
-  const tagData = await tagRes.json();
-  const taggedProducts = tagData.products.filter(p =>
+  if (!res.ok) throw new Error(`Shopify tag fetch failed: ${res.status}`);
+  const data = await res.json();
+  return data.products.filter(p =>
     p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
   );
-
-  // Try to get collection order and reorder the full products to match
-  try {
-    const collectionId = await getCollectionId(handle, token);
-    if (collectionId) {
-      const colRes = await shopifyFetch(
-        `/collections/${collectionId}/products.json?limit=50&fields=id`,
-        token
-      );
-      if (colRes.ok) {
-        const colData = await colRes.json();
-        const orderedIds = colData.products.map(p => p.id);
-        if (orderedIds.length > 0) {
-          const productMap = new Map(taggedProducts.map(p => [p.id, p]));
-          const ordered = orderedIds.map(id => productMap.get(id)).filter(Boolean);
-          // Append any tagged products not in the collection
-          const inCollection = new Set(orderedIds);
-          taggedProducts.forEach(p => { if (!inCollection.has(p.id)) ordered.push(p); });
-          return ordered;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn(`Collection order fetch failed for "${handle}":`, err.message);
-  }
-
-  return taggedProducts;
 }
 
 exports.handler = async function (event) {
@@ -109,9 +61,10 @@ exports.handler = async function (event) {
   }
 
   try {
-    // Sequential to avoid hitting Shopify's rate limit (429)
-    const proRaw   = await fetchByCollection('pro-storefront', 'pro-storefront', SHOPIFY_ADMIN_TOKEN);
-    const alsoRaw  = await fetchByCollection('pro-storefront-full', 'pro-storefront-full', SHOPIFY_ADMIN_TOKEN);
+    const [proRaw, alsoRaw] = await Promise.all([
+      fetchByTag('pro-storefront', SHOPIFY_ADMIN_TOKEN),
+      fetchByTag('pro-storefront-full', SHOPIFY_ADMIN_TOKEN),
+    ]);
 
     const mapProduct = (p) => {
       if (!p.variants?.length) return null;
