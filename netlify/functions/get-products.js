@@ -58,36 +58,43 @@ async function getCollectionId(handle, token) {
 }
 
 async function fetchByCollection(handle, tag, token) {
-  try {
-    const collectionId = await getCollectionId(handle, token);
-    if (collectionId) {
-      const res = await shopifyFetch(
-        `/collections/${collectionId}/products.json?limit=50`,
-        token
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const filtered = data.products.filter(p =>
-          p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
-        );
-        if (filtered.length > 0) return filtered;
-      }
-    }
-  } catch (err) {
-    console.warn(`Collection fetch failed for "${handle}":`, err.message);
-  }
-
-  // Fallback: fetch by tag only
-  console.warn(`Falling back to tag-only fetch for "${tag}"`);
-  const res = await shopifyFetch(
+  // Always fetch full product data via tag (includes variants, images, etc.)
+  const tagRes = await shopifyFetch(
     `/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
     token
   );
-  if (!res.ok) throw new Error(`Shopify tag fetch failed: ${res.status}`);
-  const data = await res.json();
-  return data.products.filter(p =>
+  if (!tagRes.ok) throw new Error(`Shopify tag fetch failed: ${tagRes.status}`);
+  const tagData = await tagRes.json();
+  const taggedProducts = tagData.products.filter(p =>
     p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
   );
+
+  // Try to get collection order and reorder the full products to match
+  try {
+    const collectionId = await getCollectionId(handle, token);
+    if (collectionId) {
+      const colRes = await shopifyFetch(
+        `/collections/${collectionId}/products.json?limit=50&fields=id`,
+        token
+      );
+      if (colRes.ok) {
+        const colData = await colRes.json();
+        const orderedIds = colData.products.map(p => p.id);
+        if (orderedIds.length > 0) {
+          const productMap = new Map(taggedProducts.map(p => [p.id, p]));
+          const ordered = orderedIds.map(id => productMap.get(id)).filter(Boolean);
+          // Append any tagged products not in the collection
+          const inCollection = new Set(orderedIds);
+          taggedProducts.forEach(p => { if (!inCollection.has(p.id)) ordered.push(p); });
+          return ordered;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn(`Collection order fetch failed for "${handle}":`, err.message);
+  }
+
+  return taggedProducts;
 }
 
 exports.handler = async function (event) {
