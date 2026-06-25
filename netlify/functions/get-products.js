@@ -1,27 +1,18 @@
 /**
  * Netlify Function: get-products
  *
- * Returns two product lists ordered by Shopify collection manual sort:
- *   - proProducts:  collection "pro-storefront"      → shown with 15% PRO discount
- *   - alsoProducts: collection "pro-storefront-full" → shown at full price
+ * Uses Shopify Storefront API (GraphQL) to fetch products in collection
+ * manual sort order — one query per collection, full product data included.
  *
- * Tags are used as a secondary filter — a product must have the matching tag
- * AND be in the collection to appear. This lets you control order via the
- * collection's drag-to-reorder and control visibility via tags.
- *
- * Setup in Shopify Admin:
- *   1. Products → Collections → Create collection
- *      - Title: "PRO Storefront", Handle: pro-storefront, Sort: Manual
- *   2. Create another: "PRO Storefront Full", Handle: pro-storefront-full, Sort: Manual
- *   3. Add products to each collection and drag to desired order
- *   4. Also tag each product with the matching tag (pro-storefront / pro-storefront-full)
+ *   - proProducts:  collection handle "pro-storefront"      → 15% PRO discount
+ *   - alsoProducts: collection handle "pro-storefront-full" → full price
  *
  * Required env vars:
- *   SHOPIFY_STORE_DOMAIN   e.g. af0140-2.myshopify.com
- *   SHOPIFY_ADMIN_TOKEN    Admin API access token (shpat_...)
+ *   SHOPIFY_STORE_DOMAIN      e.g. af0140-2.myshopify.com
+ *   SHOPIFY_STOREFRONT_TOKEN  Storefront API public access token
  */
 
-const SHOPIFY_API_VERSION = '2024-04';
+const STOREFRONT_API_VERSION = '2024-04';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,16 +28,91 @@ function respond(statusCode, body) {
   };
 }
 
-async function fetchByTag(tag, token) {
+const COLLECTION_QUERY = `
+  query GetCollection($handle: String!) {
+    collection(handle: $handle) {
+      products(first: 50, sortKey: COLLECTION_DEFAULT) {
+        edges {
+          node {
+            id
+            title
+            descriptionHtml
+            tags
+            images(first: 10) {
+              edges { node { url } }
+            }
+            options { name }
+            variants(first: 50) {
+              edges {
+                node {
+                  id
+                  title
+                  priceV2 { amount }
+                  selectedOptions { name value }
+                  image { url }
+                  availableForSale
+                  quantityAvailable
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+async function fetchCollection(handle, storefrontToken, domain) {
   const res = await fetch(
-    `https://${process.env.SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/products.json?tag=${encodeURIComponent(tag)}&limit=50&status=active`,
-    { headers: { 'X-Shopify-Access-Token': token } }
+    `https://${domain}/api/${STOREFRONT_API_VERSION}/graphql.json`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Storefront-Access-Token': storefrontToken,
+      },
+      body: JSON.stringify({ query: COLLECTION_QUERY, variables: { handle } }),
+    }
   );
-  if (!res.ok) throw new Error(`Shopify tag fetch failed: ${res.status}`);
-  const data = await res.json();
-  return data.products.filter(p =>
-    p.tags.split(',').map(t => t.trim().toLowerCase()).includes(tag)
-  );
+
+  if (!res.ok) throw new Error(`Storefront API error: ${res.status}`);
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors[0].message);
+
+  const products = json.data?.collection?.products?.edges || [];
+  return products.map(({ node: p }) => {
+    const variants = p.variants.edges.map(({ node: v }) => {
+      const opt = (name) => v.selectedOptions.find(o => o.name.toLowerCase() === name.toLowerCase())?.value || null;
+      return {
+        id: parseInt(v.id.replace('gid://shopify/ProductVariant/', '')),
+        label: v.title,
+        option1: v.selectedOptions[0]?.value || null,
+        option2: v.selectedOptions[1]?.value || null,
+        option3: v.selectedOptions[2]?.value || null,
+        price: parseFloat(v.priceV2.amount),
+        available: v.availableForSale,
+        image: v.image?.url || null,
+      };
+    });
+
+    const images = p.images.edges.map(({ node: img }) => img.url);
+    const mainImage = images[0] || '';
+    const firstVariant = variants[0];
+    const hasVariants = variants.length > 1;
+
+    return {
+      id: parseInt(p.id.replace('gid://shopify/Product/', '')),
+      name: p.title,
+      description: p.descriptionHtml || '',
+      price: firstVariant?.price || 0,
+      available: variants.some(v => v.available),
+      image: mainImage,
+      images,
+      variantId: firstVariant?.id,
+      variants: hasVariants ? variants : null,
+      options: p.options.map(o => o.name),
+    };
+  });
 }
 
 exports.handler = async function (event) {
@@ -54,59 +120,19 @@ exports.handler = async function (event) {
     return { statusCode: 204, headers: corsHeaders, body: '' };
   }
 
-  const { SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN } = process.env;
-  if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_ADMIN_TOKEN) {
+  const { SHOPIFY_STORE_DOMAIN, SHOPIFY_STOREFRONT_TOKEN } = process.env;
+  if (!SHOPIFY_STORE_DOMAIN || !SHOPIFY_STOREFRONT_TOKEN) {
     console.error('Missing env vars');
     return respond(500, { error: 'Server misconfiguration' });
   }
 
   try {
-    const [proRaw, alsoRaw] = await Promise.all([
-      fetchByTag('pro-storefront', SHOPIFY_ADMIN_TOKEN),
-      fetchByTag('pro-storefront-full', SHOPIFY_ADMIN_TOKEN),
+    const [proProducts, alsoProducts] = await Promise.all([
+      fetchCollection('pro-storefront', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN),
+      fetchCollection('pro-storefront-full', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN),
     ]);
 
-    const mapProduct = (p) => {
-      if (!p.variants?.length) return null;
-      const firstVariant = p.variants[0];
-      const hasVariants = p.variants.length > 1;
-
-      const imageById = {};
-      p.images.forEach(img => { imageById[img.id] = img.src; });
-      const mainImage = p.image?.src || p.images[0]?.src || '';
-
-      let variants = null;
-      if (hasVariants) {
-        variants = p.variants.map(v => ({
-          id: v.id,
-          label: v.title,
-          option1: v.option1 || null,
-          option2: v.option2 || null,
-          option3: v.option3 || null,
-          price: parseFloat(v.price),
-          available: !v.inventory_management || v.inventory_quantity > 0 || v.inventory_policy === 'continue',
-          image: v.image_id ? (imageById[v.image_id] || mainImage) : mainImage,
-        }));
-      }
-
-      return {
-        id: p.id,
-        name: p.title,
-        description: p.body_html || '',
-        price: parseFloat(firstVariant.price),
-        available: p.variants.some(v => !v.inventory_management || v.inventory_quantity > 0 || v.inventory_policy === 'continue'),
-        image: mainImage,
-        images: p.images.map(img => img.src),
-        variantId: firstVariant.id,
-        variants,
-        options: p.options.map(o => o.name),
-      };
-    };
-
-    return respond(200, {
-      proProducts:  proRaw.map(mapProduct).filter(Boolean),
-      alsoProducts: alsoRaw.map(mapProduct).filter(Boolean),
-    });
+    return respond(200, { proProducts, alsoProducts });
   } catch (err) {
     console.error('Unexpected error:', err);
     return respond(500, { error: 'Internal server error' });
