@@ -850,9 +850,96 @@
     .modal-desc p { margin-bottom: 10px; }
     .modal-desc strong, .modal-desc b { color: var(--gold-lt); }
     .modal-desc ul, .modal-desc ol { padding-left: 18px; margin-bottom: 10px; }
+
+    /* ─── Auth Gate ─── */
+    #auth-gate {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 500;
+      background: var(--bg);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 28px;
+      text-align: center;
+    }
+    #auth-gate.show { display: flex; }
+    .auth-shield {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 24px;
+    }
+    .auth-title {
+      font-size: 26px;
+      font-weight: 900;
+      color: var(--white);
+      margin-bottom: 10px;
+      letter-spacing: -0.3px;
+    }
+    .auth-sub {
+      font-size: 13px;
+      color: var(--dim);
+      line-height: 1.65;
+      max-width: 280px;
+      margin: 0 auto 32px;
+    }
+    .auth-login-btn {
+      background: var(--gold);
+      color: #1a1f1c;
+      border: none;
+      border-radius: 30px;
+      padding: 15px 40px;
+      font-size: 15px;
+      font-weight: 800;
+      font-family: 'Poppins', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 6px 24px rgba(201,168,76,0.4);
+      width: 100%;
+      max-width: 320px;
+      margin-bottom: 14px;
+    }
+    .auth-login-btn:active { opacity: 0.85; }
+    .auth-note {
+      font-size: 11px;
+      color: var(--gray);
+      max-width: 260px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+    .auth-error {
+      font-size: 12.5px;
+      color: #e05050;
+      margin-bottom: 18px;
+      display: none;
+    }
+    .auth-error.show { display: block; }
+    .auth-loading {
+      font-size: 13px;
+      color: var(--dim);
+      margin-top: 18px;
+      display: none;
+    }
+    .auth-loading.show { display: block; }
+    #storefront { display: none; }
+    #storefront.show { display: block; }
   </style>
 </head>
 <body>
+
+<!-- Auth Gate (shown until user is verified as PRO member) -->
+<div id="auth-gate">
+  <img src="https://cdn.prod.website-files.com/65c14ebc4af79bb767e4facb/682e31cafa2382fb4128fdb7_shield_3d.png" alt="PRO" class="auth-shield" />
+  <div class="auth-title">Members Only</div>
+  <p class="auth-sub">Sign in with your TheGrint account to access exclusive PRO pricing and gear.</p>
+  <div class="auth-error" id="auth-error">Sign-in failed. Please try again.</div>
+  <button class="auth-login-btn" id="auth-login-btn" onclick="startLogin()">Sign In with TheGrint</button>
+  <p class="auth-note">Only active TheGrint PRO members can access this store.</p>
+  <div class="auth-loading" id="auth-loading">Verifying your membership…</div>
+</div>
+
+<!-- Storefront (hidden until auth passes) -->
+<div id="storefront">
 
 <!-- Header -->
 <header class="header">
@@ -962,6 +1049,7 @@
     </div>
   </div>
 </div>
+</div><!-- /#storefront -->
 
 <script>
   const DISCOUNT = 0.15;
@@ -1409,7 +1497,147 @@
     }
   }
 
-  loadProducts();
+  // ─── TheGrint OAuth 2.0 PKCE Auth ───────────────────────────────────────────
+
+  const THEGRINT_CLIENT_ID = 'a219a760-afb8-4646-8c8e-e693f8ba6d10';
+  const THEGRINT_AUTHORIZE_URL = 'https://api-sandbox.thegrint.com/oauth/authorize';
+  const REDIRECT_URI = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  const SESSION_KEY = 'tg_pro_session';
+
+  // PKCE helpers
+  function randomBase64url(len) {
+    const arr = new Uint8Array(len);
+    crypto.getRandomValues(arr);
+    return btoa(String.fromCharCode(...arr)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function sha256base64url(str) {
+    const data = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  }
+
+  async function startLogin() {
+    const codeVerifier = randomBase64url(64);
+    const codeChallenge = await sha256base64url(codeVerifier);
+    const state = randomBase64url(16);
+
+    sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
+    sessionStorage.setItem('tg_pkce_state', state);
+
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: THEGRINT_CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      scope: 'openid profile',
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    });
+
+    window.location.href = `${THEGRINT_AUTHORIZE_URL}?${params}`;
+  }
+
+  async function handleCallback(code, state) {
+    const savedState = sessionStorage.getItem('tg_pkce_state');
+    const codeVerifier = sessionStorage.getItem('tg_pkce_verifier');
+    sessionStorage.removeItem('tg_pkce_state');
+    sessionStorage.removeItem('tg_pkce_verifier');
+
+    // Clean the URL so a refresh doesn't re-trigger the callback
+    window.history.replaceState({}, '', window.location.pathname);
+
+    if (state !== savedState) {
+      showAuthError('Invalid state parameter. Please try again.');
+      return;
+    }
+
+    showAuthLoading(true);
+
+    try {
+      const res = await fetch('/.netlify/functions/thegrint-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.accessToken) {
+        showAuthError('Sign-in failed. Please try again.');
+        return;
+      }
+
+      // TODO: Tighten this check once TheGrint confirms the PRO membership field
+      //       in the /V4/users/current response. For now, any authenticated user passes.
+      if (data.isPro === false) {
+        showAuthError('A PRO membership is required to access this store.');
+        return;
+      }
+
+      // Store session with expiry
+      const expiresAt = Date.now() + (data.expiresIn || 18000) * 1000;
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: data.accessToken, expiresAt }));
+
+      showStorefront();
+    } catch (err) {
+      console.error('Auth error:', err);
+      showAuthError('Something went wrong. Please try again.');
+    }
+  }
+
+  function showAuthError(msg) {
+    showAuthLoading(false);
+    const el = document.getElementById('auth-error');
+    el.textContent = msg;
+    el.classList.add('show');
+    document.getElementById('auth-gate').classList.add('show');
+  }
+
+  function showAuthLoading(on) {
+    document.getElementById('auth-loading').classList.toggle('show', on);
+    document.getElementById('auth-login-btn').disabled = on;
+  }
+
+  function showStorefront() {
+    document.getElementById('auth-gate').classList.remove('show');
+    document.getElementById('storefront').classList.add('show');
+    loadProducts();
+  }
+
+  function checkSession() {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return false;
+      const { expiresAt } = JSON.parse(raw);
+      if (Date.now() < expiresAt) return true;
+      localStorage.removeItem(SESSION_KEY);
+    } catch {}
+    return false;
+  }
+
+  // ─── Boot ───────────────────────────────────────────────────────────────────
+  (function boot() {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+
+    if (code && state) {
+      // Returning from TheGrint OAuth redirect
+      document.getElementById('auth-gate').classList.add('show');
+      showAuthLoading(true);
+      handleCallback(code, state);
+      return;
+    }
+
+    if (checkSession()) {
+      showStorefront();
+      return;
+    }
+
+    // No session — show login screen
+    document.getElementById('auth-gate').classList.add('show');
+  })();
 </script>
 </body>
 </html>
