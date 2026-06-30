@@ -71,38 +71,41 @@ exports.handler = async function (event) {
       body: params.toString(),
     });
 
+    const tokenText = await tokenRes.text();
+    console.log('Token exchange status:', tokenRes.status, tokenText);
+
     if (!tokenRes.ok) {
-      const err = await tokenRes.text();
-      console.error('Token exchange failed:', tokenRes.status, err);
-      return respond(401, { error: 'Token exchange failed' });
+      return respond(401, { error: 'Token exchange failed', detail: tokenText, step: 'token' });
     }
 
-    tokenData = await tokenRes.json();
+    tokenData = JSON.parse(tokenText);
   } catch (err) {
     console.error('Token exchange error:', err);
-    return respond(502, { error: 'Failed to reach TheGrint API' });
+    return respond(502, { error: 'Failed to reach TheGrint API', step: 'token' });
   }
 
   const accessToken = tokenData.access_token;
   if (!accessToken) {
     console.error('No access_token in response:', tokenData);
-    return respond(401, { error: 'Authentication failed' });
+    return respond(401, { error: 'No access token returned', detail: JSON.stringify(tokenData), step: 'token' });
   }
 
-  // Step 2: Decode JWT to extract the user's email (payload is base64url, no signature verification needed here)
+  // Step 2: Decode JWT to extract the user's email
   let email;
   try {
     const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('utf8'));
-    email = payload.email || payload.sub;
+    console.log('JWT payload keys:', Object.keys(payload));
+    email = payload.email || payload.sub || payload.username;
   } catch (err) {
     console.error('JWT decode error:', err);
-    return respond(500, { error: 'Failed to decode access token' });
+    return respond(500, { error: 'Failed to decode access token', step: 'jwt' });
   }
 
   if (!email) {
-    console.error('No email in JWT payload');
-    return respond(500, { error: 'Could not determine user email from token' });
+    return respond(500, { error: 'Could not find email in token', step: 'jwt' });
   }
+
+  console.log('Checking membership for:', email);
 
   // Step 3: Check PRO membership status
   let membershipData;
@@ -118,18 +121,21 @@ exports.handler = async function (event) {
       }
     );
 
+    const memberText = await memberRes.text();
+    console.log('Membership status:', memberRes.status, memberText);
+
     if (!memberRes.ok) {
-      console.error('Membership check failed:', memberRes.status);
-      return respond(401, { error: 'Membership verification failed' });
+      return respond(401, { error: 'Membership check failed', detail: memberText, step: 'membership' });
     }
 
-    membershipData = await memberRes.json();
+    membershipData = JSON.parse(memberText);
   } catch (err) {
     console.error('Membership fetch error:', err);
-    return respond(502, { error: 'Failed to verify membership' });
+    return respond(502, { error: 'Failed to verify membership', step: 'membership' });
   }
 
   const isPro = membershipData?.data?.is_pro === true;
+  console.log('is_pro:', isPro, 'raw data:', JSON.stringify(membershipData?.data));
 
   return respond(200, {
     isPro,

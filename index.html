@@ -1576,7 +1576,7 @@
       const data = await res.json();
 
       if (!res.ok || !data.accessToken) {
-        showAuthError('Sign-in failed. Please try again.');
+        showAuthError(`Sign-in failed (step: ${data.step || '?'}) — ${data.error || 'unknown error'}`);
         return;
       }
 
