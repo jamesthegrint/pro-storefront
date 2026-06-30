@@ -2,14 +2,15 @@
  * Netlify Function: thegrint-token
  *
  * Exchanges a TheGrint OAuth PKCE authorization code for an access token,
- * then calls /V4/users/current to verify the user is authenticated.
+ * then calls /v6/users/membership-status to verify PRO membership.
+ * The membership endpoint resolves the user from the Bearer token — no email needed.
  *
  * Required env vars:
  *   THEGRINT_CLIENT_ID   TheGrint OAuth client ID
+ *   REQUIRE_PRO_CHECK    Set to "true" to enforce PRO-only access
  */
 
 const THEGRINT_BASE = 'https://api-sandbox.thegrint.com';
-const API_VERSION = 'v4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,50 +87,26 @@ exports.handler = async function (event) {
 
   const accessToken = tokenData.access_token;
   if (!accessToken) {
-    console.error('No access_token in response:', tokenData);
     return respond(401, { error: 'No access token returned', detail: JSON.stringify(tokenData), step: 'token' });
   }
 
-  // Step 2: Extract user ID from JWT sub field
-  let userId;
-  try {
-    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('utf8'));
-    console.log('JWT payload keys:', Object.keys(payload), 'sub:', payload.sub);
-    userId = payload.sub;
-  } catch (err) {
-    console.error('JWT decode error:', err);
-    return respond(500, { error: 'Failed to decode access token', step: 'jwt' });
-  }
-
-  if (!userId) {
-    return respond(500, { error: 'Could not find user ID in token', step: 'jwt' });
-  }
-
-  console.log('Checking membership for user_id:', userId);
-
-  // Step 3: Check PRO membership status
-  // REQUIRE_PRO_CHECK=true enforces the membership check (set this in production).
-  // In sandbox the membership-status endpoint returns "Invalid Api Version",
-  // so leave REQUIRE_PRO_CHECK unset to let any authenticated user through.
+  // Step 2: Check PRO membership — backend resolves user from Bearer token
   const requireProCheck = process.env.REQUIRE_PRO_CHECK === 'true';
 
   if (!requireProCheck) {
-    console.log('PRO check bypassed (sandbox mode) — granting access to user_id:', userId);
+    console.log('PRO check bypassed — granting access');
     return respond(200, { isPro: true, accessToken, expiresIn: tokenData.expires_in });
   }
 
   let membershipData;
   try {
-    const memberRes = await fetch(
-      `${THEGRINT_BASE}/v6/users/membership-status?user_id=${encodeURIComponent(userId)}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-        },
-      }
-    );
+    const memberRes = await fetch(`${THEGRINT_BASE}/v6/users/membership-status`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
 
     const memberText = await memberRes.text();
     console.log('Membership status:', memberRes.status, memberText);
@@ -145,7 +122,7 @@ exports.handler = async function (event) {
   }
 
   const isPro = membershipData?.data?.is_pro === true;
-  console.log('is_pro:', isPro, 'raw data:', JSON.stringify(membershipData?.data));
+  console.log('is_pro:', isPro);
 
   return respond(200, { isPro, accessToken, expiresIn: tokenData.expires_in });
 };
