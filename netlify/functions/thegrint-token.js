@@ -9,7 +9,7 @@
  */
 
 const THEGRINT_BASE = 'https://api-sandbox.thegrint.com';
-const API_VERSION = 'V4';
+const API_VERSION = 'v4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -121,7 +121,7 @@ exports.handler = async function (event) {
   let membershipData;
   try {
     const memberRes = await fetch(
-      `${THEGRINT_BASE}/V6/users/membership-status?user_id=${encodeURIComponent(userId)}`,
+      `${THEGRINT_BASE}/v6/users/membership-status?user_id=${encodeURIComponent(userId)}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
