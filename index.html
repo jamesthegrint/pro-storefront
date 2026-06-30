@@ -730,16 +730,15 @@
       position: relative;
       z-index: 1;
       background: var(--bg-card);
-      border-radius: 24px 24px 24px 24px;
-      width: 100%;
+      border-radius: 20px;
+      width: calc(100% - 16px);
       max-width: 600px;
-      height: 80vh;
-      max-height: 80vh;
+      height: calc(100vh - 32px);
+      max-height: calc(100vh - 32px);
       display: flex;
       flex-direction: column;
       box-shadow: 0 -8px 40px rgba(0,0,0,0.5);
       animation: slideUp 0.28s cubic-bezier(0.32,0.72,0,1);
-      margin-bottom: 20px;
     }
     @keyframes slideUp {
       from { transform: translateY(100%); }
@@ -764,7 +763,7 @@
       top: 8px;
       width: 30px; height: 30px;
       border-radius: 50%;
-      background: rgba(255,255,255,0.12);
+      background: rgba(30,36,50,0.85);
       border: none;
       color: #fff;
       font-size: 16px;
@@ -773,6 +772,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      z-index: 10;
     }
     .modal-scroll {
       overflow-y: auto;
