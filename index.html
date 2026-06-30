@@ -1442,7 +1442,9 @@
   function showTip(el, text) {
     const r = el.getBoundingClientRect();
     tooltip.textContent = text;
+    tooltip.style.left = '-9999px';
     tooltip.classList.add('visible');
+    // offsetWidth/Height are only accurate after the element is visible
     tooltip.style.left = (r.left + r.width / 2 - tooltip.offsetWidth / 2) + 'px';
     tooltip.style.top  = (r.top - tooltip.offsetHeight - 6) + 'px';
   }
