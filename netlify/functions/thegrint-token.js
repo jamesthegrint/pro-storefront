@@ -9,7 +9,7 @@
  */
 
 const THEGRINT_BASE = 'https://api-sandbox.thegrint.com';
-const API_VERSION = 'V4';
+const API_VERSION = 'V6';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -89,39 +89,47 @@ exports.handler = async function (event) {
     return respond(401, { error: 'Authentication failed' });
   }
 
-  // Step 2: Verify user profile
-  let userData;
+  // Step 2: Decode JWT to extract the user's email (payload is base64url, no signature verification needed here)
+  let email;
   try {
-    const userRes = await fetch(`${THEGRINT_BASE}/${API_VERSION}/users/current`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!userRes.ok) {
-      console.error('User verification failed:', userRes.status);
-      return respond(401, { error: 'User verification failed' });
-    }
-
-    userData = await userRes.json();
+    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('utf8'));
+    email = payload.email || payload.sub;
   } catch (err) {
-    console.error('User fetch error:', err);
-    return respond(502, { error: 'Failed to verify user' });
+    console.error('JWT decode error:', err);
+    return respond(500, { error: 'Failed to decode access token' });
   }
 
-  // Check PRO membership status.
-  // TODO: Confirm exact field name with TheGrint team once /V4/users/current
-  //       200 response schema is documented. Update the isPro check below.
-  //       Common candidates: user.isPro, user.is_pro, user.membershipType === 'pro'
-  const user = userData.data || userData;
-  const isPro =
-    user.isPro === true ||
-    user.is_pro === true ||
-    user.proMember === true ||
-    (typeof user.membershipType === 'string' && user.membershipType.toLowerCase() === 'pro') ||
-    (typeof user.membership === 'string' && user.membership.toLowerCase() === 'pro');
+  if (!email) {
+    console.error('No email in JWT payload');
+    return respond(500, { error: 'Could not determine user email from token' });
+  }
+
+  // Step 3: Check PRO membership status
+  let membershipData;
+  try {
+    const memberRes = await fetch(
+      `${THEGRINT_BASE}/${API_VERSION}/users/membership-status?email=${encodeURIComponent(email)}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+      }
+    );
+
+    if (!memberRes.ok) {
+      console.error('Membership check failed:', memberRes.status);
+      return respond(401, { error: 'Membership verification failed' });
+    }
+
+    membershipData = await memberRes.json();
+  } catch (err) {
+    console.error('Membership fetch error:', err);
+    return respond(502, { error: 'Failed to verify membership' });
+  }
+
+  const isPro = membershipData?.data?.is_pro === true;
 
   return respond(200, {
     isPro,
