@@ -111,7 +111,7 @@ exports.handler = async function (event) {
   let membershipData;
   try {
     const memberRes = await fetch(
-      `${THEGRINT_BASE}/${API_VERSION}/users/membership-status?user_id=${encodeURIComponent(userId)}`,
+      `${THEGRINT_BASE}/V6/users/membership-status?user_id=${encodeURIComponent(userId)}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
