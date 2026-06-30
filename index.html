@@ -1518,24 +1518,36 @@
   }
 
   async function startLogin() {
-    const codeVerifier = randomBase64url(64);
-    const codeChallenge = await sha256base64url(codeVerifier);
-    const state = randomBase64url(16);
+    try {
+      // Clear any stale PKCE state from a previous attempt
+      sessionStorage.removeItem('tg_pkce_verifier');
+      sessionStorage.removeItem('tg_pkce_state');
 
-    sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
-    sessionStorage.setItem('tg_pkce_state', state);
+      document.getElementById('auth-error').classList.remove('show');
+      showAuthLoading(true);
 
-    const params = new URLSearchParams({
-      response_type: 'code',
-      client_id: THEGRINT_CLIENT_ID,
-      redirect_uri: REDIRECT_URI,
-      scope: 'basic-user',
-      state,
-      code_challenge: codeChallenge,
-      code_challenge_method: 'S256',
-    });
+      const codeVerifier = randomBase64url(64);
+      const codeChallenge = await sha256base64url(codeVerifier);
+      const state = randomBase64url(16);
 
-    window.location.href = `${THEGRINT_AUTHORIZE_URL}?${params}`;
+      sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
+      sessionStorage.setItem('tg_pkce_state', state);
+
+      const params = new URLSearchParams({
+        response_type: 'code',
+        client_id: THEGRINT_CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        scope: 'basic-user',
+        state,
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+      });
+
+      window.location.href = `${THEGRINT_AUTHORIZE_URL}?${params}`;
+    } catch (err) {
+      console.error('startLogin error:', err);
+      showAuthError('Unable to start sign-in. Please try again.');
+    }
   }
 
   async function handleCallback(code, state) {
