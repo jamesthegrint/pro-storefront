@@ -90,39 +90,28 @@ exports.handler = async function (event) {
     return respond(401, { error: 'No access token returned', detail: JSON.stringify(tokenData), step: 'token' });
   }
 
-  // Step 2: Get user profile to retrieve email
-  let email;
+  // Step 2: Extract user ID from JWT sub field
+  let userId;
   try {
-    const profileRes = await fetch(`${THEGRINT_BASE}/${API_VERSION}/users/current`, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-      },
-    });
-    const profileText = await profileRes.text();
-    console.log('Profile status:', profileRes.status, profileText);
-    if (!profileRes.ok) {
-      return respond(401, { error: 'Profile fetch failed', detail: profileText, step: 'profile' });
-    }
-    const profileData = JSON.parse(profileText);
-    email = profileData?.data?.user?.email || profileData?.data?.email || profileData?.email;
+    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('utf8'));
+    console.log('JWT payload keys:', Object.keys(payload), 'sub:', payload.sub);
+    userId = payload.sub;
   } catch (err) {
-    console.error('Profile fetch error:', err);
-    return respond(502, { error: 'Failed to fetch user profile', step: 'profile' });
+    console.error('JWT decode error:', err);
+    return respond(500, { error: 'Failed to decode access token', step: 'jwt' });
   }
 
-  if (!email) {
-    return respond(500, { error: 'Could not find email in profile', step: 'profile' });
+  if (!userId) {
+    return respond(500, { error: 'Could not find user ID in token', step: 'jwt' });
   }
 
-  console.log('Checking membership for:', email);
+  console.log('Checking membership for user_id:', userId);
 
-  // Step 3: Check PRO membership status
+  // Step 3: Check PRO membership status using user_id
   let membershipData;
   try {
     const memberRes = await fetch(
-      `${THEGRINT_BASE}/${API_VERSION}/users/membership-status?email=${encodeURIComponent(email)}`,
+      `${THEGRINT_BASE}/${API_VERSION}/users/membership-status?user_id=${encodeURIComponent(userId)}`,
       {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
