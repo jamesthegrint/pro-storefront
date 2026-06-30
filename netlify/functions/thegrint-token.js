@@ -9,7 +9,7 @@
  */
 
 const THEGRINT_BASE = 'https://api-sandbox.thegrint.com';
-const API_VERSION = 'V6';
+const API_VERSION = 'V4';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -90,19 +90,30 @@ exports.handler = async function (event) {
     return respond(401, { error: 'No access token returned', detail: JSON.stringify(tokenData), step: 'token' });
   }
 
-  // Step 2: Decode JWT to extract the user's email
+  // Step 2: Get user profile to retrieve email
   let email;
   try {
-    const payload = JSON.parse(Buffer.from(accessToken.split('.')[1], 'base64').toString('utf8'));
-    console.log('JWT payload keys:', Object.keys(payload));
-    email = payload.email || payload.sub || payload.username;
+    const profileRes = await fetch(`${THEGRINT_BASE}/${API_VERSION}/users/current`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+    });
+    const profileText = await profileRes.text();
+    console.log('Profile status:', profileRes.status, profileText);
+    if (!profileRes.ok) {
+      return respond(401, { error: 'Profile fetch failed', detail: profileText, step: 'profile' });
+    }
+    const profileData = JSON.parse(profileText);
+    email = profileData?.data?.user?.email || profileData?.data?.email || profileData?.email;
   } catch (err) {
-    console.error('JWT decode error:', err);
-    return respond(500, { error: 'Failed to decode access token', step: 'jwt' });
+    console.error('Profile fetch error:', err);
+    return respond(502, { error: 'Failed to fetch user profile', step: 'profile' });
   }
 
   if (!email) {
-    return respond(500, { error: 'Could not find email in token', step: 'jwt' });
+    return respond(500, { error: 'Could not find email in profile', step: 'profile' });
   }
 
   console.log('Checking membership for:', email);
