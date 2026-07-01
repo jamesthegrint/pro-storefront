@@ -1661,6 +1661,7 @@
 
   function showStorefront() {
     document.getElementById('auth-gate').classList.remove('show');
+    document.getElementById('auth-loading-screen').classList.remove('show');
     document.getElementById('storefront').classList.add('show');
     loadProducts();
   }
