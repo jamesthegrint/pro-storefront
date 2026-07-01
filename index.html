@@ -916,13 +916,46 @@
       display: none;
     }
     .auth-error.show { display: block; }
-    .auth-loading {
-      font-size: 13px;
-      color: var(--dim);
-      margin-top: 18px;
+    #auth-loading-screen {
       display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 600;
+      background: var(--bg);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
     }
-    .auth-loading.show { display: block; }
+    #auth-loading-screen.show { display: flex; }
+    .auth-loading-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--white);
+    }
+    .auth-loading-sub {
+      font-size: 12px;
+      color: var(--dim);
+    }
+    .dots-wrap {
+      display: flex;
+      gap: 10px;
+    }
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: dotPulse 1.2s ease-in-out infinite;
+    }
+    .dot:nth-child(1) { animation-delay: 0s; }
+    .dot:nth-child(2) { animation-delay: 0.2s; }
+    .dot:nth-child(3) { animation-delay: 0.4s; }
+    .dot:nth-child(4) { animation-delay: 0.6s; }
+    @keyframes dotPulse {
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+      40%            { transform: scale(1);   opacity: 1; }
+    }
     #storefront { display: none; }
     #storefront.show { display: block; }
   </style>
@@ -937,7 +970,19 @@
   <div class="auth-error" id="auth-error">Sign-in failed. Please try again.</div>
   <button class="auth-login-btn" id="auth-login-btn" onclick="startLogin()">Sign In with TheGrint</button>
   <p class="auth-note">Only active TheGrint PRO members can access this store.</p>
-  <div class="auth-loading" id="auth-loading">Verifying your membership…</div>
+</div>
+
+<!-- Loading screen shown during OAuth callback / membership verification -->
+<div id="auth-loading-screen">
+  <img src="https://cdn.prod.website-files.com/65c14ebc4af79bb767e4facb/682e31cafa2382fb4128fdb7_shield_3d.png" alt="PRO" class="auth-shield" />
+  <div class="auth-loading-title">Verifying Membership</div>
+  <div class="dots-wrap">
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  </div>
+  <div class="auth-loading-sub">Just a moment…</div>
 </div>
 
 <!-- Storefront (hidden until auth passes) -->
@@ -1610,8 +1655,8 @@
   }
 
   function showAuthLoading(on) {
-    document.getElementById('auth-loading').classList.toggle('show', on);
-    document.getElementById('auth-login-btn').disabled = on;
+    document.getElementById('auth-loading-screen').classList.toggle('show', on);
+    document.getElementById('auth-gate').classList.toggle('show', !on);
   }
 
   function showStorefront() {
