@@ -1567,6 +1567,11 @@
 
   async function startLogin() {
     try {
+      if (!window.crypto || !window.crypto.subtle) {
+        showAuthError('Your browser does not support secure login. Please try a different browser.');
+        return;
+      }
+
       // Clear any stale PKCE state from a previous attempt
       sessionStorage.removeItem('tg_pkce_verifier');
       sessionStorage.removeItem('tg_pkce_state');
