@@ -85,6 +85,19 @@
       border-radius: 3px;
       display: inline-block;
     }
+    .country-select {
+      background: rgba(201,168,76,0.1);
+      border: 1.5px solid rgba(201,168,76,0.3);
+      color: var(--gold);
+      border-radius: 20px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+    }
     .cart-btn {
       position: relative;
       background: rgba(201,168,76,0.1);
@@ -1086,11 +1099,19 @@
         <span class="pro-label">PRO Members Only</span>
       </div>
     </div>
-    <button class="cart-btn" onclick="openCart()">
-      <span>🛒</span>
-      <span id="cart-btn-label">Cart</span>
-      <span class="cart-count" id="cart-count-badge">0</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <select id="country-select" class="country-select" onchange="onCountryChange(this.value)">
+        <option value="US">🇺🇸 USD</option>
+        <option value="GB">🇬🇧 GBP</option>
+        <option value="CA">🇨🇦 CAD</option>
+        <option value="MX">🇲🇽 MXN</option>
+      </select>
+      <button class="cart-btn" onclick="openCart()">
+        <span>🛒</span>
+        <span id="cart-btn-label">Cart</span>
+        <span class="cart-count" id="cart-count-badge">0</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -1210,6 +1231,14 @@
 <script>
   const DISCOUNT = 0.15;
 
+  const COUNTRY_CONFIG = {
+    US: { currency: 'USD', symbol: '$',   flag: '🇺🇸' },
+    GB: { currency: 'GBP', symbol: '£',   flag: '🇬🇧' },
+    CA: { currency: 'CAD', symbol: 'CA$', flag: '🇨🇦' },
+    MX: { currency: 'MXN', symbol: 'MX$', flag: '🇲🇽' },
+  };
+  let selectedCountry = 'US';
+
   // Products are loaded dynamically from Shopify via get-products function.
   // Tag "pro-storefront" → PRO price section. Tag "pro-storefront-full" → Also in the Shop.
   let products = [];      // discounted PRO items
@@ -1263,7 +1292,16 @@
   }
 
   function proPrice(p) { return p * (1 - DISCOUNT); }
-  function fmt(n) { return '$' + n.toFixed(2); }
+  function fmt(n) { return COUNTRY_CONFIG[selectedCountry].symbol + n.toFixed(2); }
+
+  function onCountryChange(country) {
+    if (!COUNTRY_CONFIG[country]) return;
+    selectedCountry = country;
+    cart = {};
+    cartDiscounted = {};
+    updateCartUI();
+    loadProducts();
+  }
 
   function getSelectedVariant(p) {
     if (!p.variants) return null;
@@ -1545,7 +1583,7 @@
       const res = await fetch('/.netlify/functions/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ items: payload }),
+        body: JSON.stringify({ items: payload, presentmentCurrency: COUNTRY_CONFIG[selectedCountry].currency }),
       });
       if (!res.ok) throw new Error();
       checkoutUrl = (await res.json()).checkoutUrl;
@@ -1651,7 +1689,7 @@
       <div style="font-size:13px;letter-spacing:0.05em;">Loading products…</div>
     </div>`;
     try {
-      const res = await fetch('/.netlify/functions/get-products');
+      const res = await fetch(`/.netlify/functions/get-products?country=${selectedCountry}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       products = data.proProducts || [];

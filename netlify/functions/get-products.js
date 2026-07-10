@@ -32,8 +32,8 @@ function respond(statusCode, body) {
   };
 }
 
-const COLLECTION_QUERY = `
-  query GetCollection($handle: String!) {
+const COLLECTION_QUERY = (country) => `
+  query GetCollection($handle: String!) @inContext(country: ${country}) {
     collection(handle: $handle) {
       products(first: 50, sortKey: COLLECTION_DEFAULT) {
         edges {
@@ -66,7 +66,7 @@ const COLLECTION_QUERY = `
   }
 `;
 
-async function fetchCollection(handle, storefrontToken, domain) {
+async function fetchCollection(handle, storefrontToken, domain, country = 'US') {
   const res = await fetch(
     `https://${domain}/api/${STOREFRONT_API_VERSION}/graphql.json`,
     {
@@ -75,7 +75,7 @@ async function fetchCollection(handle, storefrontToken, domain) {
         'Content-Type': 'application/json',
         'X-Shopify-Storefront-Access-Token': storefrontToken,
       },
-      body: JSON.stringify({ query: COLLECTION_QUERY, variables: { handle } }),
+      body: JSON.stringify({ query: COLLECTION_QUERY(country), variables: { handle } }),
     }
   );
 
@@ -214,11 +214,16 @@ exports.handler = async function (event) {
     return respond(500, { error: 'Server misconfiguration' });
   }
 
+  const VALID_COUNTRIES = { US: 'USD', GB: 'GBP', CA: 'CAD', MX: 'MXN' };
+  const country = (event.queryStringParameters?.country || 'US').toUpperCase();
+  const countryCode = VALID_COUNTRIES[country] ? country : 'US';
+  const currency = VALID_COUNTRIES[countryCode];
+
   try {
     // Fetch from both APIs in parallel
     const [proStorefront, alsoStorefront, proAdmin, alsoAdmin] = await Promise.all([
-      fetchCollection('pro-storefront', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN),
-      fetchCollection('pro-storefront-full', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN),
+      fetchCollection('pro-storefront', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN, countryCode),
+      fetchCollection('pro-storefront-full', SHOPIFY_STOREFRONT_TOKEN, SHOPIFY_STORE_DOMAIN, countryCode),
       fetchByTagAdmin('pro-storefront', SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN),
       fetchByTagAdmin('pro-storefront-full', SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN),
     ]);
@@ -237,6 +242,8 @@ exports.handler = async function (event) {
     return respond(200, {
       proProducts:  attachRatings(proProducts),
       alsoProducts: attachRatings(alsoProducts),
+      currency,
+      countryCode,
     });
   } catch (err) {
     console.error('Unexpected error:', err);

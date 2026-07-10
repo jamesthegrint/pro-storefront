@@ -48,7 +48,7 @@ exports.handler = async function (event) {
     return respond(400, { error: 'Invalid request body' });
   }
 
-  const { items } = body;
+  const { items, presentmentCurrency } = body;
   if (!items || !items.length) {
     return respond(400, { error: 'No items provided' });
   }
@@ -67,7 +67,13 @@ exports.handler = async function (event) {
     return item;
   });
 
-  const draftOrder = { line_items: lineItems };
+  const VALID_CURRENCIES = ['USD', 'GBP', 'CAD', 'MXN'];
+  const draftOrder = {
+    line_items: lineItems,
+    ...(presentmentCurrency && VALID_CURRENCIES.includes(presentmentCurrency)
+      ? { presentment_currency: presentmentCurrency }
+      : {}),
+  };
 
   try {
     const url = `https://${SHOPIFY_STORE_DOMAIN}/admin/api/${SHOPIFY_API_VERSION}/draft_orders.json`;
