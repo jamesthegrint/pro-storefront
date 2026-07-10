@@ -1298,11 +1298,7 @@
     const pill = document.getElementById('free-shipping-pill');
     if (!pill) return;
     const cfg = COUNTRY_CONFIG[selectedCountry];
-    if (selectedCountry === 'US') {
-      pill.textContent = `Free Shipping $175 USD+`;
-    } else {
-      pill.textContent = `Free Shipping $175 USD (≈${cfg.symbol}${cfg.freeShippingLocal})+`;
-    }
+    pill.textContent = `Free Shipping ${cfg.symbol}${cfg.freeShippingLocal}+`;
   }
 
   function onCountryChange(country) {
