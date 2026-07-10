@@ -1232,10 +1232,10 @@
   const DISCOUNT = 0.15;
 
   const COUNTRY_CONFIG = {
-    US: { currency: 'USD', symbol: '$',   flag: '🇺🇸' },
-    GB: { currency: 'GBP', symbol: '£',   flag: '🇬🇧' },
-    CA: { currency: 'CAD', symbol: 'CA$', flag: '🇨🇦' },
-    MX: { currency: 'MXN', symbol: 'MX$', flag: '🇲🇽' },
+    US: { currency: 'USD', symbol: '$',   flag: '🇺🇸', freeShippingUSD: 175, freeShippingLocal: 175  },
+    GB: { currency: 'GBP', symbol: '£',   flag: '🇬🇧', freeShippingUSD: 175, freeShippingLocal: 140  },
+    CA: { currency: 'CAD', symbol: 'CA$', flag: '🇨🇦', freeShippingUSD: 175, freeShippingLocal: 240  },
+    MX: { currency: 'MXN', symbol: 'MX$', flag: '🇲🇽', freeShippingUSD: 175, freeShippingLocal: 3100 },
   };
   let selectedCountry = 'US';
 
@@ -1296,7 +1296,13 @@
 
   function updateFreeShippingPill() {
     const pill = document.getElementById('free-shipping-pill');
-    if (pill) pill.textContent = `Free Shipping ${fmt(175)}+`;
+    if (!pill) return;
+    const cfg = COUNTRY_CONFIG[selectedCountry];
+    if (selectedCountry === 'US') {
+      pill.textContent = `Free Shipping $175 USD+`;
+    } else {
+      pill.textContent = `Free Shipping $175 USD (≈${cfg.symbol}${cfg.freeShippingLocal})+`;
+    }
   }
 
   function onCountryChange(country) {
@@ -1538,7 +1544,7 @@
         </div>
       </div>`;
     }).join('');
-    const freeShipping = pro >= 175;
+    const freeShipping = pro >= COUNTRY_CONFIG[selectedCountry].freeShippingLocal;
     sum.innerHTML = `
       <div class="summary-row"><span>Retail subtotal</span><span>${fmt(orig)}</span></div>
       <div class="summary-row savings"><span>PRO Member Savings (15%)</span><span>−${fmt(savings)}</span></div>
@@ -1871,6 +1877,7 @@
     document.getElementById('auth-gate').classList.remove('show');
     document.getElementById('auth-loading-screen').classList.remove('show');
     document.getElementById('storefront').classList.add('show');
+    updateFreeShippingPill();
     loadProducts();
   }
 
