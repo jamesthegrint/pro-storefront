@@ -1235,7 +1235,7 @@
     US: { currency: 'USD', symbol: '$',   flag: '🇺🇸', freeShippingUSD: 175, freeShippingLocal: 175  },
     GB: { currency: 'GBP', symbol: '£',   flag: '🇬🇧', freeShippingUSD: 175, freeShippingLocal: 140  },
     CA: { currency: 'CAD', symbol: 'CA$', flag: '🇨🇦', freeShippingUSD: 175, freeShippingLocal: 240  },
-    MX: { currency: 'MXN', symbol: 'MX$', flag: '🇲🇽', freeShippingUSD: 175, freeShippingLocal: 3100 },
+    MX: { currency: 'MXN', symbol: 'MX$', flag: '🇲🇽', freeShippingUSD: 175, freeShippingLocal: 3100, usdRate: 17.8 },
   };
   let selectedCountry = 'US';
 
@@ -1700,8 +1700,18 @@
       const res = await fetch(`/.netlify/functions/get-products?country=${selectedCountry}`);
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
-      products = data.proProducts || [];
-      alsoProducts = data.alsoProducts || [];
+      const cfg = COUNTRY_CONFIG[selectedCountry];
+      const applyRate = (p) => {
+        if (!cfg.usdRate) return p;
+        const convert = (n) => Math.round(n * cfg.usdRate * 100) / 100;
+        return {
+          ...p,
+          price: convert(p.price),
+          variants: p.variants?.map(v => ({ ...v, price: convert(v.price) })),
+        };
+      };
+      products = (data.proProducts || []).map(applyRate);
+      alsoProducts = (data.alsoProducts || []).map(applyRate);
       [...products, ...alsoProducts].forEach(p => { selectedVariants[p.id] = p.variantId; });
       document.getElementById('product-count').textContent = `${products.length} item${products.length !== 1 ? 's' : ''}`;
       const alsoSection = document.getElementById('also-section');
