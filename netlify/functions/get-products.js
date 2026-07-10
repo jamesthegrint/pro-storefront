@@ -52,7 +52,7 @@ const COLLECTION_QUERY = (country) => `
                 node {
                   id
                   title
-                  priceV2 { amount }
+                  priceV2 { amount currencyCode }
                   selectedOptions { name value }
                   image { url }
                   availableForSale
@@ -84,6 +84,10 @@ async function fetchCollection(handle, storefrontToken, domain, country = 'US') 
   if (json.errors) throw new Error(json.errors[0].message);
 
   const products = json.data?.collection?.products?.edges || [];
+  if (products[0]) {
+    const firstVariant = products[0].node.variants.edges[0]?.node;
+    console.log(`[${handle}] country=${country} price=${firstVariant?.priceV2?.amount} currencyCode=${firstVariant?.priceV2?.currencyCode}`);
+  }
   return products.map(({ node: p }) => {
     const variants = p.variants.edges.map(({ node: v }) => {
       const opt = (name) => v.selectedOptions.find(o => o.name.toLowerCase() === name.toLowerCase())?.value || null;
