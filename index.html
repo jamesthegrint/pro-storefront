@@ -263,6 +263,20 @@
       gap: 4px;
       margin-bottom: 4px;
     }
+    .star-half {
+      position: relative;
+      display: inline-block;
+      color: #ccc;
+    }
+    .star-half > span {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 50%;
+      overflow: hidden;
+      color: #f5a623;
+      display: inline-block;
+    }
     .stars {
       color: #f5a623;
       font-size: 11px;
@@ -1164,7 +1178,8 @@
     const full  = Math.floor(rounded);
     const half  = rounded % 1 !== 0 ? 1 : 0;
     const empty = 5 - full - half;
-    const stars = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+    const halfStar = half ? '<span class="star-half">☆<span>★</span></span>' : '';
+    const stars = '★'.repeat(full) + halfStar + '☆'.repeat(empty);
     if (modal) {
       return `<div class="modal-star-row">
         <span class="modal-stars">${stars}</span>
