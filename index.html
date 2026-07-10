@@ -1160,8 +1160,9 @@
   let cart = {};
   function renderStars(p, modal = false) {
     if (!p.rating || p.reviewCount === 0) return '';
-    const full  = Math.floor(p.rating);
-    const half  = p.rating - full >= 0.25 && p.rating - full < 0.75 ? 1 : 0;
+    const rounded = Math.round(p.rating * 2) / 2;
+    const full  = Math.floor(rounded);
+    const half  = rounded % 1 !== 0 ? 1 : 0;
     const empty = 5 - full - half;
     const stars = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
     if (modal) {
