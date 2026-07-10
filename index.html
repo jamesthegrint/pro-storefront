@@ -257,6 +257,31 @@
       height: 100%;
       object-fit: cover;
     }
+    .star-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 4px;
+    }
+    .stars {
+      color: #f5a623;
+      font-size: 11px;
+      letter-spacing: 1px;
+      line-height: 1;
+    }
+    .review-count {
+      font-size: 10px;
+      color: var(--dim);
+      font-weight: 500;
+    }
+    .modal-star-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .modal-stars { color: #f5a623; font-size: 14px; letter-spacing: 1px; }
+    .modal-review-count { font-size: 12px; color: var(--dim); }
     .pro-ribbon {
       position: absolute;
       top: 9px; left: 0;
@@ -1133,6 +1158,24 @@
   const selectedVariants = {};
 
   let cart = {};
+  function renderStars(p, modal = false) {
+    if (!p.rating || p.reviewCount === 0) return '';
+    const full  = Math.floor(p.rating);
+    const half  = p.rating - full >= 0.25 && p.rating - full < 0.75 ? 1 : 0;
+    const empty = 5 - full - half;
+    const stars = '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty);
+    if (modal) {
+      return `<div class="modal-star-row">
+        <span class="modal-stars">${stars}</span>
+        <span class="modal-review-count">${p.rating.toFixed(1)} (${p.reviewCount})</span>
+      </div>`;
+    }
+    return `<div class="star-row">
+      <span class="stars">${stars}</span>
+      <span class="review-count">(${p.reviewCount})</span>
+    </div>`;
+  }
+
   function proPrice(p) { return p * (1 - DISCOUNT); }
   function fmt(n) { return '$' + n.toFixed(2); }
 
@@ -1253,6 +1296,7 @@
           </div>
           <div class="product-info">
             <div class="product-name">${p.name}</div>
+            ${renderStars(p, false)}
             <div class="price-row">
               ${discounted ? `<span class="price-original">${fmt(activePrice)}</span>` : ''}
               <span class="price-pro">${fmt(displayPrice)}</span>
@@ -1448,6 +1492,7 @@
     document.getElementById('modal-main-img').src = activeImage;
     document.getElementById('modal-main-img').alt = p.name;
     document.getElementById('modal-title').textContent = p.name;
+    document.getElementById('modal-title').insertAdjacentHTML('afterend', renderStars(p, true));
     const isDiscounted = products.some(x => x.id === productId);
     document.getElementById('modal-price-orig').textContent = isDiscounted ? fmt(activePrice) : '';
     document.getElementById('modal-price-pro').textContent = isDiscounted ? fmt(proPrice(activePrice)) : fmt(activePrice);

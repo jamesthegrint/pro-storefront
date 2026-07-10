@@ -15,6 +15,8 @@
 
 const STOREFRONT_API_VERSION = '2024-04';
 const ADMIN_API_VERSION = '2024-04';
+const JUDGEME_API_TOKEN = 'lND8Xp-zV-RWnfGwYpq8106c37I';
+const SHOP_DOMAIN = 'thegrint.shop';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +40,7 @@ const COLLECTION_QUERY = `
           node {
             id
             title
+            handle
             descriptionHtml
             tags
             images(first: 10) {
@@ -103,6 +106,7 @@ async function fetchCollection(handle, storefrontToken, domain) {
 
     return {
       id: parseInt(p.id.replace('gid://shopify/Product/', '')),
+      handle: p.handle,
       name: p.title,
       description: p.descriptionHtml || '',
       price: firstVariant?.price || 0,
@@ -156,6 +160,31 @@ async function fetchByTagAdmin(tag, domain, adminToken) {
   }).filter(Boolean);
 }
 
+// Fetch Judge.me ratings for a list of products (by handle)
+async function fetchRatings(products) {
+  const results = await Promise.allSettled(
+    products.map(async (p) => {
+      if (!p.handle) return { id: p.id, rating: null, reviewCount: 0 };
+      try {
+        const url = `https://judge.me/api/v1/products/-1?url=https://${SHOP_DOMAIN}/products/${p.handle}&api_token=${JUDGEME_API_TOKEN}`;
+        const res = await fetch(url);
+        if (!res.ok) return { id: p.id, rating: null, reviewCount: 0 };
+        const data = await res.json();
+        return {
+          id: p.id,
+          rating: data.product?.average_rating ?? null,
+          reviewCount: data.product?.review_count ?? 0,
+        };
+      } catch {
+        return { id: p.id, rating: null, reviewCount: 0 };
+      }
+    })
+  );
+  const map = {};
+  results.forEach(r => { if (r.value) map[r.value.id] = r.value; });
+  return map;
+}
+
 // Merge: keep Storefront order, append any products missing from it (e.g. bundles)
 function mergeProducts(storefrontProducts, adminProducts) {
   const seen = new Set(storefrontProducts.map(p => p.id));
@@ -183,9 +212,20 @@ exports.handler = async function (event) {
       fetchByTagAdmin('pro-storefront-full', SHOPIFY_STORE_DOMAIN, SHOPIFY_ADMIN_TOKEN),
     ]);
 
+    const proProducts  = mergeProducts(proStorefront, proAdmin);
+    const alsoProducts = mergeProducts(alsoStorefront, alsoAdmin);
+    const allProducts  = [...proProducts, ...alsoProducts];
+
+    const ratings = await fetchRatings(allProducts);
+    const attachRatings = (products) => products.map(p => ({
+      ...p,
+      rating: ratings[p.id]?.rating ?? null,
+      reviewCount: ratings[p.id]?.reviewCount ?? 0,
+    }));
+
     return respond(200, {
-      proProducts:  mergeProducts(proStorefront, proAdmin),
-      alsoProducts: mergeProducts(alsoStorefront, alsoAdmin),
+      proProducts:  attachRatings(proProducts),
+      alsoProducts: attachRatings(alsoProducts),
     });
   } catch (err) {
     console.error('Unexpected error:', err);
