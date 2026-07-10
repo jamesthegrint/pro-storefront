@@ -15,8 +15,8 @@
 
 const STOREFRONT_API_VERSION = '2024-04';
 const ADMIN_API_VERSION = '2024-04';
-const JUDGEME_API_TOKEN = 'lND8Xp-zV-RWnfGwYpq8106c37I';
-const SHOP_DOMAIN = 'thegrint.shop';
+const JUDGEME_PRIVATE_TOKEN = 'Z0JXQrt0y_AsXo86sQNOolLjYXY';
+const SHOP_DOMAIN = 'af0140-2.myshopify.com';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -160,30 +160,40 @@ async function fetchByTagAdmin(tag, domain, adminToken) {
   }).filter(Boolean);
 }
 
-// Fetch Judge.me ratings for a list of products (by handle)
+// Fetch Judge.me ratings: pull all published shop reviews in one batch and aggregate per handle
 async function fetchRatings(products) {
-  const results = await Promise.allSettled(
-    products.map(async (p) => {
-      if (!p.handle) return { id: p.id, rating: null, reviewCount: 0 };
-      try {
-        const url = `https://judge.me/api/v1/products/-1?url=https://${SHOP_DOMAIN}/products/${p.handle}&api_token=${JUDGEME_API_TOKEN}`;
-        const res = await fetch(url);
-        if (!res.ok) return { id: p.id, rating: null, reviewCount: 0 };
-        const data = await res.json();
-        console.log(`Judge.me [${p.handle}]:`, JSON.stringify(data.product));
-        return {
-          id: p.id,
-          rating: data.product?.average_rating ?? null,
-          reviewCount: data.product?.review_count ?? 0,
-        };
-      } catch {
-        return { id: p.id, rating: null, reviewCount: 0 };
-      }
-    })
-  );
-  const map = {};
-  results.forEach(r => { if (r.value) map[r.value.id] = r.value; });
-  return map;
+  const handleToId = {};
+  products.forEach(p => { if (p.handle) handleToId[p.handle] = p.id; });
+
+  try {
+    const res = await fetch(
+      `https://judge.me/api/v1/reviews?api_token=${JUDGEME_PRIVATE_TOKEN}&shop_domain=${SHOP_DOMAIN}&per_page=250&page=1&published=true`
+    );
+    if (!res.ok) { console.error('Judge.me fetch failed:', res.status); return {}; }
+    const data = await res.json();
+    const reviews = data.reviews || [];
+    console.log(`Judge.me: fetched ${reviews.length} reviews`);
+
+    // Aggregate per product handle
+    const agg = {};
+    reviews.forEach(r => {
+      const h = r.product_handle;
+      if (!h || !handleToId[h]) return;
+      if (!agg[h]) agg[h] = { sum: 0, count: 0 };
+      agg[h].sum += r.rating;
+      agg[h].count += 1;
+    });
+
+    const map = {};
+    Object.entries(agg).forEach(([handle, { sum, count }]) => {
+      const id = handleToId[handle];
+      map[id] = { id, rating: sum / count, reviewCount: count };
+    });
+    return map;
+  } catch (err) {
+    console.error('Judge.me error:', err);
+    return {};
+  }
 }
 
 // Merge: keep Storefront order, append any products missing from it (e.g. bundles)
