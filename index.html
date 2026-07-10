@@ -1126,7 +1126,7 @@
   <p class="hero-desc">Elevate your PRO Membership by unlocking premium gear from TheGrint Shop at exclusive members-only pricing.</p>
   <div class="hero-pills">
     <div class="hero-pill gold">🏆 PRO Members Only</div>
-    <div class="hero-pill">Free Shipping $175+</div>
+    <div class="hero-pill" id="free-shipping-pill">Free Shipping $175+</div>
   </div>
 </section>
 
@@ -1294,12 +1294,18 @@
   function proPrice(p) { return p * (1 - DISCOUNT); }
   function fmt(n) { return COUNTRY_CONFIG[selectedCountry].symbol + n.toFixed(2); }
 
+  function updateFreeShippingPill() {
+    const pill = document.getElementById('free-shipping-pill');
+    if (pill) pill.textContent = `Free Shipping ${fmt(175)}+`;
+  }
+
   function onCountryChange(country) {
     if (!COUNTRY_CONFIG[country]) return;
     selectedCountry = country;
     cart = {};
     cartDiscounted = {};
     updateCartUI();
+    updateFreeShippingPill();
     loadProducts();
   }
 
