@@ -170,6 +170,7 @@ async function fetchRatings(products) {
         const res = await fetch(url);
         if (!res.ok) return { id: p.id, rating: null, reviewCount: 0 };
         const data = await res.json();
+        console.log(`Judge.me [${p.handle}]:`, JSON.stringify(data.product));
         return {
           id: p.id,
           rating: data.product?.average_rating ?? null,
