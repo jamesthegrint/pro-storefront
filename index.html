@@ -1626,6 +1626,26 @@
     return btoa(String.fromCharCode(...new Uint8Array(digest))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   }
 
+  async function buildAuthUrl() {
+    const codeVerifier = randomBase64url(64);
+    const codeChallenge = await sha256base64url(codeVerifier);
+    const state = randomBase64url(16);
+    sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
+    sessionStorage.setItem('tg_pkce_state', state);
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: THEGRINT_CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      scope: 'basic-user',
+      state,
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    });
+    return `${THEGRINT_AUTHORIZE_URL}?${params}`;
+  }
+
+  let _authPopup = null;
+
   async function startLogin() {
     try {
       if (!window.crypto || !window.crypto.subtle) {
@@ -1636,28 +1656,36 @@
       // Clear any stale PKCE state from a previous attempt
       sessionStorage.removeItem('tg_pkce_verifier');
       sessionStorage.removeItem('tg_pkce_state');
-
       document.getElementById('auth-error').classList.remove('show');
-      showAuthLoading(true);
 
-      const codeVerifier = randomBase64url(64);
-      const codeChallenge = await sha256base64url(codeVerifier);
-      const state = randomBase64url(16);
+      const inIframe = window.self !== window.top;
 
-      sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
-      sessionStorage.setItem('tg_pkce_state', state);
-
-      const params = new URLSearchParams({
-        response_type: 'code',
-        client_id: THEGRINT_CLIENT_ID,
-        redirect_uri: REDIRECT_URI,
-        scope: 'basic-user',
-        state,
-        code_challenge: codeChallenge,
-        code_challenge_method: 'S256',
-      });
-
-      window.location.href = `${THEGRINT_AUTHORIZE_URL}?${params}`;
+      if (inIframe) {
+        // Open OAuth in a popup so the iframe doesn't navigate away
+        showAuthLoading(true);
+        if (_authPopup && !_authPopup.closed) _authPopup.close();
+        _authPopup = window.open(
+          REDIRECT_URI + '?popup_init=1',
+          'tg_auth_popup',
+          'width=480,height=660,left=' + Math.round((screen.width - 480) / 2) + ',top=' + Math.round((screen.height - 660) / 2)
+        );
+        window.addEventListener('message', function onMsg(e) {
+          if (e.origin !== 'https://pro-storefront.netlify.app') return;
+          if (e.data?.type !== 'tg_auth_result') return;
+          window.removeEventListener('message', onMsg);
+          showAuthLoading(false);
+          if (e.data.isPro) {
+            const expiresAt = Date.now() + (e.data.expiresIn || 18000) * 1000;
+            localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: e.data.accessToken, expiresAt }));
+            showStorefront();
+          } else {
+            showAuthError('Sign-in failed. Please try again.');
+          }
+        });
+      } else {
+        showAuthLoading(true);
+        window.location.href = await buildAuthUrl();
+      }
     } catch (err) {
       console.error('startLogin error:', err);
       showAuthError('Unable to start sign-in. Please try again.');
@@ -1744,13 +1772,48 @@
   }
 
   // ─── Boot ───────────────────────────────────────────────────────────────────
-  (function boot() {
+  (async function boot() {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
     const state = params.get('state');
+    const isPopup = !!window.opener;
+
+    if (params.get('popup_init') === '1') {
+      // Popup opened by iframe: generate PKCE and redirect to TheGrint
+      window.location.href = await buildAuthUrl();
+      return;
+    }
+
+    if (code && state && isPopup) {
+      // Returning from OAuth inside a popup: exchange token and notify opener
+      try {
+        const savedState = sessionStorage.getItem('tg_pkce_state');
+        const codeVerifier = sessionStorage.getItem('tg_pkce_verifier');
+        sessionStorage.removeItem('tg_pkce_state');
+        sessionStorage.removeItem('tg_pkce_verifier');
+        if (state !== savedState) throw new Error('state mismatch');
+        const res = await fetch('/.netlify/functions/thegrint-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI }),
+        });
+        const data = await res.json();
+        window.opener.postMessage({
+          type: 'tg_auth_result',
+          isPro: data.isPro || false,
+          accessToken: data.accessToken || null,
+          expiresIn: data.expiresIn || 18000,
+        }, 'https://pro-storefront.netlify.app');
+      } catch (err) {
+        console.error('Popup callback error:', err);
+        window.opener.postMessage({ type: 'tg_auth_result', isPro: false }, 'https://pro-storefront.netlify.app');
+      }
+      window.close();
+      return;
+    }
 
     if (code && state) {
-      // Returning from TheGrint OAuth redirect
+      // Returning from TheGrint OAuth redirect (non-popup flow)
       document.getElementById('auth-gate').classList.add('show');
       showAuthLoading(true);
       handleCallback(code, state);
