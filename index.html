@@ -1782,6 +1782,9 @@
     const codeVerifier = randomBase64url(64);
     const codeChallenge = await sha256base64url(codeVerifier);
     const state = randomBase64url(16);
+    // Use localStorage so PKCE survives top-level navigation (iframe flow)
+    localStorage.setItem('tg_pkce_verifier', codeVerifier);
+    localStorage.setItem('tg_pkce_state', state);
     sessionStorage.setItem('tg_pkce_verifier', codeVerifier);
     sessionStorage.setItem('tg_pkce_state', state);
     const params = new URLSearchParams({
@@ -1828,10 +1831,12 @@
   }
 
   async function handleCallback(code, state) {
-    const savedState = sessionStorage.getItem('tg_pkce_state');
-    const codeVerifier = sessionStorage.getItem('tg_pkce_verifier');
+    const savedState = sessionStorage.getItem('tg_pkce_state') || localStorage.getItem('tg_pkce_state');
+    const codeVerifier = sessionStorage.getItem('tg_pkce_verifier') || localStorage.getItem('tg_pkce_verifier');
     sessionStorage.removeItem('tg_pkce_state');
     sessionStorage.removeItem('tg_pkce_verifier');
+    localStorage.removeItem('tg_pkce_state');
+    localStorage.removeItem('tg_pkce_verifier');
 
     // Clean the URL so a refresh doesn't re-trigger the callback
     window.history.replaceState({}, '', window.location.pathname);
