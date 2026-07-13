@@ -1813,27 +1813,11 @@
       const inIframe = window.self !== window.top;
 
       if (inIframe) {
-        // Open OAuth in a popup so the iframe doesn't navigate away
-        showAuthLoading(true);
-        if (_authPopup && !_authPopup.closed) _authPopup.close();
-        _authPopup = window.open(
-          REDIRECT_URI + '?popup_init=1',
-          'tg_auth_popup',
-          'width=480,height=660,left=' + Math.round((screen.width - 480) / 2) + ',top=' + Math.round((screen.height - 660) / 2)
-        );
-        window.addEventListener('message', function onMsg(e) {
-          if (e.origin !== 'https://pro-storefront.netlify.app') return;
-          if (e.data?.type !== 'tg_auth_result') return;
-          window.removeEventListener('message', onMsg);
-          showAuthLoading(false);
-          if (e.data.isPro) {
-            const expiresAt = Date.now() + (e.data.expiresIn || 18000) * 1000;
-            localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: e.data.accessToken, expiresAt }));
-            showStorefront();
-          } else {
-            showAuthError('Sign-in failed. Please try again.');
-          }
-        });
+        // On mobile popups are blocked — navigate the top-level page to OAuth instead
+        // Store the Shopify page URL so we can return after auth
+        sessionStorage.setItem('tg_return_to', window.top.location.href);
+        const authUrl = await buildAuthUrl();
+        window.top.location.href = authUrl;
       } else {
         showAuthLoading(true);
         window.location.href = await buildAuthUrl();
@@ -1885,6 +1869,12 @@
       const expiresAt = Date.now() + (data.expiresIn || 18000) * 1000;
       localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: data.accessToken, expiresAt }));
 
+      const returnTo = sessionStorage.getItem('tg_return_to');
+      sessionStorage.removeItem('tg_return_to');
+      if (returnTo && returnTo !== window.location.href) {
+        window.location.href = returnTo;
+        return;
+      }
       showStorefront();
     } catch (err) {
       console.error('Auth error:', err);
