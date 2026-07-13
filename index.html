@@ -1814,8 +1814,7 @@
 
       if (inIframe) {
         // On mobile popups are blocked — navigate the top-level page to OAuth instead
-        // Store the Shopify page URL so we can return after auth
-        sessionStorage.setItem('tg_return_to', window.top.location.href);
+        sessionStorage.setItem('tg_return_to', 'https://thegrint.shop/pages/pro-members-only');
         const authUrl = await buildAuthUrl();
         window.top.location.href = authUrl;
       } else {
