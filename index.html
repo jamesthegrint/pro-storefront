@@ -1816,10 +1816,9 @@
       const inIframe = window.self !== window.top;
 
       if (inIframe) {
-        // On mobile popups are blocked — navigate the top-level page to OAuth instead
-        sessionStorage.setItem('tg_return_to', 'https://thegrint.shop/pages/pro-members-only');
-        const authUrl = await buildAuthUrl();
-        window.top.location.href = authUrl;
+        // Navigate top frame to our own page first (so PKCE is generated as first-party)
+        // Safari ITP blocks localStorage writes from cross-site iframes
+        window.top.location.href = REDIRECT_URI + '?oauth_start=1';
       } else {
         showAuthLoading(true);
         window.location.href = await buildAuthUrl();
@@ -1873,9 +1872,9 @@
       const expiresAt = Date.now() + (data.expiresIn || 18000) * 1000;
       localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: data.accessToken, expiresAt }));
 
-      const returnTo = sessionStorage.getItem('tg_return_to');
-      sessionStorage.removeItem('tg_return_to');
-      if (returnTo && returnTo !== window.location.href) {
+      const returnTo = localStorage.getItem('tg_return_to');
+      localStorage.removeItem('tg_return_to');
+      if (returnTo) {
         window.location.href = returnTo;
         return;
       }
@@ -1925,8 +1924,9 @@
     const state = params.get('state');
     const isPopup = !!window.opener;
 
-    if (params.get('popup_init') === '1') {
-      // Popup opened by iframe: generate PKCE and redirect to TheGrint
+    if (params.get('popup_init') === '1' || params.get('oauth_start') === '1') {
+      // First-party page: generate PKCE here so localStorage is accessible on callback
+      localStorage.setItem('tg_return_to', 'https://thegrint.shop/pages/pro-members-only');
       window.location.href = await buildAuthUrl();
       return;
     }
