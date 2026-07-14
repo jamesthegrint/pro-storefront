@@ -10,7 +10,7 @@
  *   REQUIRE_PRO_CHECK    Set to "true" to enforce PRO-only access
  */
 
-const THEGRINT_BASE = 'https://api-sandbox.thegrint.com';
+const THEGRINT_BASE = 'https://api.thegrint.com';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
