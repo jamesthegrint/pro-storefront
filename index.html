@@ -1875,7 +1875,9 @@
       const returnTo = localStorage.getItem('tg_return_to');
       localStorage.removeItem('tg_return_to');
       if (returnTo) {
-        window.location.href = returnTo;
+        const expiresAt = Date.now() + (data.expiresIn || 18000) * 1000;
+        const sep = returnTo.includes('?') ? '&' : '?';
+        window.location.href = `${returnTo}${sep}tg_token=${encodeURIComponent(data.accessToken)}&tg_expires=${expiresAt}`;
         return;
       }
       showStorefront();
@@ -1964,6 +1966,16 @@
       document.getElementById('auth-gate').classList.add('show');
       showAuthLoading(true);
       handleCallback(code, state);
+      return;
+    }
+
+    // Token passed via URL from post-auth Shopify redirect
+    const tgToken = params.get('tg_token');
+    const tgExpires = params.get('tg_expires');
+    if (tgToken && tgExpires) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ accessToken: tgToken, expiresAt: parseInt(tgExpires) }));
+      window.history.replaceState({}, '', window.location.pathname);
+      showStorefront();
       return;
     }
 
