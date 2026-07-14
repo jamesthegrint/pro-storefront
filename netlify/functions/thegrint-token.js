@@ -11,6 +11,7 @@
  */
 
 const THEGRINT_BASE = 'https://api.thegrint.com';
+const THEGRINT_CLIENT_ID = 'a23a91be-bc8e-4787-b1ac-275dc111cf33';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32,12 +33,6 @@ exports.handler = async function (event) {
   }
   if (event.httpMethod !== 'POST') {
     return respond(405, { error: 'Method not allowed' });
-  }
-
-  const { THEGRINT_CLIENT_ID } = process.env;
-  if (!THEGRINT_CLIENT_ID) {
-    console.error('Missing THEGRINT_CLIENT_ID env var');
-    return respond(500, { error: 'Server misconfiguration' });
   }
 
   let body;
