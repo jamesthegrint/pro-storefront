@@ -1256,7 +1256,14 @@
 </div><!-- /#storefront -->
 
 <script>
-  const DISCOUNT = 0.15;
+  const DEFAULT_DISCOUNT = 15; // percent, used when a product has no prodiscount-NN tag
+
+  // Reads a per-product discount percent from a "prodiscount-NN" tag (e.g. prodiscount-20 → 20%).
+  // Falls back to DEFAULT_DISCOUNT if no matching tag is present.
+  function getDiscountPercent(p) {
+    const match = (p.tags || []).map(t => /^prodiscount-(\d+(?:\.\d+)?)$/i.exec(t.trim())).find(Boolean);
+    return match ? parseFloat(match[1]) : DEFAULT_DISCOUNT;
+  }
 
   const COUNTRY_CONFIG = {
     US: { currency: 'USD', symbol: '$',   flag: '🇺🇸', freeShippingUSD: 175, freeShippingLocal: 175  },
@@ -1317,7 +1324,7 @@
     </div>`;
   }
 
-  function proPrice(p) { return p * (1 - DISCOUNT); }
+  function proPrice(price, percent = DEFAULT_DISCOUNT) { return price * (1 - percent / 100); }
   function fmt(n) { return COUNTRY_CONFIG[selectedCountry].symbol + n.toFixed(2); }
 
   function updateFreeShippingPill() {
@@ -1443,7 +1450,8 @@
       const selectedV = getSelectedVariant(p);
       const activePrice = selectedV?.price ?? p.price;
       const activeImage = selectedV?.image ?? p.image;
-      const displayPrice = discounted ? proPrice(activePrice) : activePrice;
+      const discountPercent = getDiscountPercent(p);
+      const displayPrice = discounted ? proPrice(activePrice, discountPercent) : activePrice;
       const qty = cart[p.id]?.qty ?? cart[p.id] ?? 0;
       return `
         <div class="product-card${p.available ? '' : ' unavailable'}" id="card-${p.id}">
@@ -1458,7 +1466,7 @@
             <div class="price-row">
               ${discounted ? `<span class="price-original">${fmt(activePrice)}</span>` : ''}
               <span class="price-pro">${fmt(displayPrice)}</span>
-              ${discounted && p.available ? `<span class="savings-tag">-15%</span>` : ''}
+              ${discounted && p.available ? `<span class="savings-tag">-${discountPercent}%</span>` : ''}
             </div>
             ${renderVariants(p)}
             ${!p.available
@@ -1510,7 +1518,7 @@
       const price = variant?.price ?? p.price;
       const discounted = cartDiscounted[id] !== false;
       orig += price * q;
-      pro += (discounted ? proPrice(price) : price) * q;
+      pro += (discounted ? proPrice(price, getDiscountPercent(p)) : price) * q;
       qty += q;
     }
     return { orig, pro, savings: orig - pro, qty };
@@ -1549,7 +1557,7 @@
       const price = variant?.price ?? p.price;
       const image = variant?.image ?? p.image;
       const subtitle = variant ? `<div style="font-size:10px;color:var(--gray);margin-top:1px">${variant.label}</div>` : '';
-      const displayPrice = discounted ? proPrice(price) : price;
+      const displayPrice = discounted ? proPrice(price, getDiscountPercent(p)) : price;
       const origSpan = discounted ? `<span class="cart-item-orig">${fmt(price)}</span>` : '';
       return `
       <div class="cart-item">
@@ -1569,7 +1577,7 @@
     const freeShipping = pro >= COUNTRY_CONFIG[selectedCountry].freeShippingLocal;
     sum.innerHTML = `
       <div class="summary-row"><span>Retail subtotal</span><span>${fmt(orig)}</span></div>
-      <div class="summary-row savings"><span>PRO Member Savings (15%)</span><span>−${fmt(savings)}</span></div>
+      <div class="summary-row savings"><span>PRO Member Savings</span><span>−${fmt(savings)}</span></div>
       <div class="summary-row" style="color:var(--dim);font-size:12px"><span>Shipping</span><span>${freeShipping ? '<span style="color:#4caf7d;font-weight:600">FREE</span>' : 'Calculated at checkout'}</span></div>
       <div class="summary-row" style="color:var(--dim);font-size:12px"><span>Taxes</span><span>Calculated at checkout</span></div>
       <div class="summary-row total"><span>Your PRO Total</span><span>${fmt(pro)}</span></div>`;
@@ -1605,7 +1613,7 @@
       const qty = entry?.qty ?? entry;
       const variantId = entry?.variantId ?? p.variantId;
       const discounted = cartDiscounted[id] !== false;
-      return { variantId, quantity: qty, discounted };
+      return { variantId, quantity: qty, discounted, discountPercent: getDiscountPercent(p) };
     });
 
     // Open window immediately (must be in the same call stack as the click
@@ -1653,7 +1661,7 @@
     document.getElementById('modal-title').insertAdjacentHTML('afterend', renderStars(p, true));
     const isDiscounted = products.some(x => x.id === productId);
     document.getElementById('modal-price-orig').textContent = isDiscounted ? fmt(activePrice) : '';
-    document.getElementById('modal-price-pro').textContent = isDiscounted ? fmt(proPrice(activePrice)) : fmt(activePrice);
+    document.getElementById('modal-price-pro').textContent = isDiscounted ? fmt(proPrice(activePrice, getDiscountPercent(p))) : fmt(activePrice);
     document.getElementById('modal-desc').innerHTML = p.description || '<p style="color:var(--dim)">No description available.</p>';
 
     // Thumbnails — use all product images if available

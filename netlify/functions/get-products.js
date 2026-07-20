@@ -120,6 +120,7 @@ async function fetchCollection(handle, storefrontToken, domain, country = 'US') 
       variantId: firstVariant?.id,
       variants: hasVariants ? variants : null,
       options: p.options.map(o => o.name),
+      tags: p.tags || [],
     };
   });
 }
@@ -160,6 +161,7 @@ async function fetchByTagAdmin(tag, domain, adminToken) {
         image: v.image_id ? (imageById[v.image_id] || mainImage) : mainImage,
       })) : null,
       options: p.options.map(o => o.name),
+      tags: p.tags.split(',').map(t => t.trim()).filter(Boolean),
     };
   }).filter(Boolean);
 }

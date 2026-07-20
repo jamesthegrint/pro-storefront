@@ -53,14 +53,18 @@ exports.handler = async function (event) {
     return respond(400, { error: 'No items provided' });
   }
 
-  // Each item may have a discounted flag — only apply PRO discount to those
-  const lineItems = items.map(({ variantId, quantity, discounted }) => {
+  // Each item may have a discounted flag — only apply PRO discount to those.
+  // discountPercent comes from the product's "prodiscount-NN" tag (defaults to 15).
+  const lineItems = items.map(({ variantId, quantity, discounted, discountPercent }) => {
     const item = { variant_id: variantId, quantity };
     if (discounted) {
+      const percent = Number.isFinite(discountPercent) && discountPercent > 0 && discountPercent <= 100
+        ? discountPercent
+        : 15;
       item.applied_discount = {
         description: 'TheGrint PRO Member',
         value_type: 'percentage',
-        value: '15.0',
+        value: percent.toFixed(1),
         title: 'TheGrint PRO Member',
       };
     }
