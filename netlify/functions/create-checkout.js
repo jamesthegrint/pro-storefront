@@ -74,6 +74,7 @@ exports.handler = async function (event) {
   const VALID_CURRENCIES = ['USD', 'GBP', 'CAD', 'MXN'];
   const draftOrder = {
     line_items: lineItems,
+    tags: 'pro-storefront',
     ...(presentmentCurrency && VALID_CURRENCIES.includes(presentmentCurrency)
       ? { presentment_currency: presentmentCurrency }
       : {}),
