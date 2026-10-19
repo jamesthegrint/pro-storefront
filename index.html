@@ -1279,6 +1279,80 @@
   // Track which cart items are discounted
   let cartDiscounted = {};
 
+  // ─── PRO Cart Handoff ───────────────────────────────────────────────────────
+  // Lets /pages/pro-members-only forward the customer's main-store cart in via
+  // ?tg_cart=variantId:qty,variantId:qty — see CONTEXT.md "Cart handoff contract".
+  // Dormant until a theme actually sends tg_cart; no effect on current users.
+  const PENDING_CART_KEY = 'tg_pending_cart';
+  let _incomingCartParam = null;
+  let _cartHandoffApplied = false;
+
+  function captureCartHandoff(params) {
+    const raw = params.get('tg_cart');
+    if (raw) {
+      _incomingCartParam = raw;
+      // Persisted (not sessionStorage) so it survives the top-level bounce to
+      // TheGrint's OAuth page and back — same-origin storage, safe either way.
+      localStorage.setItem(PENDING_CART_KEY, raw);
+    }
+  }
+
+  function parseCartHandoff(raw) {
+    if (!raw) return [];
+    return raw.split(',').map(pair => {
+      const [idStr, qtyStr] = pair.split(':');
+      const variantId = parseInt(idStr, 10);
+      const qty = parseInt(qtyStr, 10) || 1;
+      return (Number.isFinite(variantId) && variantId > 0) ? { variantId, qty } : null;
+    }).filter(Boolean);
+  }
+
+  function findProductForVariant(variantId) {
+    for (const p of products) {
+      if (p.variantId === variantId) return { product: p, variantId, discounted: true };
+      const v = p.variants?.find(v => v.id === variantId);
+      if (v) return { product: p, variantId: v.id, discounted: true };
+    }
+    for (const p of alsoProducts) {
+      if (p.variantId === variantId) return { product: p, variantId, discounted: false };
+      const v = p.variants?.find(v => v.id === variantId);
+      if (v) return { product: p, variantId: v.id, discounted: false };
+    }
+    return null;
+  }
+
+  function applyCartHandoff(rawParam) {
+    if (_cartHandoffApplied) return;
+    const raw = rawParam || localStorage.getItem(PENDING_CART_KEY);
+    if (!raw) return;
+    _cartHandoffApplied = true;
+    localStorage.removeItem(PENDING_CART_KEY);
+
+    const entries = parseCartHandoff(raw);
+    let matched = 0;
+    let skipped = 0;
+    entries.forEach(({ variantId, qty }) => {
+      const found = findProductForVariant(variantId);
+      if (!found) { skipped++; return; }
+      cart[found.product.id] = { qty, variantId: found.variantId };
+      cartDiscounted[found.product.id] = found.discounted;
+      selectedVariants[found.product.id] = found.variantId;
+      matched++;
+    });
+
+    if (matched > 0) {
+      renderProducts();
+      updateCartUI();
+      openCart();
+    }
+    if (matched > 0 || skipped > 0) {
+      const parts = [];
+      if (matched > 0) parts.push(`${matched} item${matched !== 1 ? 's' : ''} moved from your cart`);
+      if (skipped > 0) parts.push(`${skipped} item${skipped !== 1 ? 's' : ''} not available here`);
+      showToast(parts.join(' · '));
+    }
+  }
+
   // Maps color option names to hex values for swatch rendering
   const COLOR_HEX = {
     'navy': '#1a2f4a', 'white': '#f0f0f0', 'gray': '#8a8a8a', 'grey': '#8a8a8a',
@@ -1808,8 +1882,16 @@
   }
 
   let _authPopup = null;
+  let _loginInFlight = false;
 
   async function startLogin() {
+    // Guard against double-tap/double-click firing two competing auth attempts,
+    // which overwrites the PKCE state mid-flight and causes "Invalid state parameter".
+    if (_loginInFlight) return;
+    _loginInFlight = true;
+    const btn = document.getElementById('auth-login-btn');
+    if (btn) btn.disabled = true;
+
     try {
       if (!window.crypto || !window.crypto.subtle) {
         showAuthError('Your browser does not support secure login. Please try a different browser.');
@@ -1834,6 +1916,8 @@
     } catch (err) {
       console.error('startLogin error:', err);
       showAuthError('Unable to start sign-in. Please try again.');
+      _loginInFlight = false;
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -1885,7 +1969,9 @@
       if (returnTo) {
         const expiresAt = Date.now() + (data.expiresIn || 18000) * 1000;
         const sep = returnTo.includes('?') ? '&' : '?';
-        window.location.href = `${returnTo}${sep}tg_token=${encodeURIComponent(data.accessToken)}&tg_expires=${expiresAt}`;
+        const pendingCart = localStorage.getItem(PENDING_CART_KEY);
+        const cartParam = pendingCart ? `&tg_cart=${encodeURIComponent(pendingCart)}` : '';
+        window.location.href = `${returnTo}${sep}tg_token=${encodeURIComponent(data.accessToken)}&tg_expires=${expiresAt}${cartParam}`;
         return;
       }
       showStorefront();
@@ -1913,7 +1999,7 @@
     document.getElementById('auth-loading-screen').classList.remove('show');
     document.getElementById('storefront').classList.add('show');
     updateFreeShippingPill();
-    loadProducts();
+    loadProducts().then(() => applyCartHandoff(_incomingCartParam));
   }
 
   function checkSession() {
@@ -1930,6 +2016,7 @@
   // ─── Boot ───────────────────────────────────────────────────────────────────
   (async function boot() {
     const params = new URLSearchParams(window.location.search);
+    captureCartHandoff(params);
     const code = params.get('code');
     const state = params.get('state');
     const isPopup = !!window.opener;
