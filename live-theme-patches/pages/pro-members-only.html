@@ -1,0 +1,31 @@
+<style>
+  #pro-iframe {
+    display: block;
+    width: 100vw;
+    height: 100dvh;
+    border: none;
+    position: relative;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+</style>
+<iframe id="pro-iframe" src="https://pro-storefront.netlify.app" allow="clipboard-write" scrolling="yes"></iframe>
+<script>
+  (function() {
+    var p = new URLSearchParams(window.location.search);
+    var token = p.get('tg_token');
+    var expires = p.get('tg_expires');
+    var cartParam = p.get('tg_cart');
+
+    if (token && expires) {
+      var iframe = document.getElementById('pro-iframe');
+      var src = 'https://pro-storefront.netlify.app?tg_token=' + encodeURIComponent(token) + '&tg_expires=' + expires;
+      if (cartParam) src += '&tg_cart=' + encodeURIComponent(cartParam);
+      iframe.src = src;
+      window.history.replaceState({}, '', window.location.pathname);
+    } else if (cartParam) {
+      // First visit from the cart, not logged in yet — pass the cart straight through.
+      document.getElementById('pro-iframe').src = 'https://pro-storefront.netlify.app?tg_cart=' + encodeURIComponent(cartParam);
+    }
+  })();
+</script>
