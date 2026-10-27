@@ -17,12 +17,96 @@
     visibility: hidden;
   }
 
+  /* Drop the divider line Dawn draws above the totals/checkout footer.
+     !important guards against load-order cascade ties with Dawn's own
+     component-cart-drawer.css rule of equal specificity. */
+  .drawer__footer {
+    border-top: none !important;
+  }
+
   /* Wider drawer on desktop so the "You may also like" shelf isn't cramped. */
   @media screen and (min-width: 750px) {
     .drawer__inner {
       width: 56rem;
       max-width: calc(100vw - 3rem);
     }
+  }
+
+  /* "You may also like" layout: horizontal swipeable strip ABOVE the main
+     cart on mobile (full width, doesn't steal column width from cart item
+     text), vertical sidebar BESIDE the main cart on desktop (plenty of
+     width to spare there). Same markup both ways — only these rules change
+     between breakpoints. */
+  .tg-drawer-split {
+    display: flex;
+    flex-direction: column;
+  }
+  @media screen and (min-width: 750px) {
+    .tg-drawer-split {
+      flex-direction: row;
+    }
+    /* Breathing room from the rail's vertical border-right — only applies
+       on desktop, where that border exists (mobile's rail border is on the
+       bottom instead, so no vertical line to pad away from there). */
+    .tg-drawer-main {
+      padding-left: 16px;
+    }
+  }
+
+  .tg-drawer-recs-rail {
+    width: 100%;
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+  }
+  @media screen and (min-width: 750px) {
+    .tg-drawer-recs-rail {
+      width: 170px;
+      padding: 10px 6px;
+      border-bottom: 0;
+      border-right: 1px solid rgba(0, 0, 0, 0.08);
+      overflow-y: auto;
+    }
+  }
+
+  .cart-drawer-recommendations__results {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 2px;
+  }
+  @media screen and (min-width: 750px) {
+    .cart-drawer-recommendations__results {
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: auto;
+      scroll-snap-type: none;
+    }
+  }
+
+  .cart-drawer-recommendations__item {
+    flex: 0 0 92px;
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+  @media screen and (min-width: 750px) {
+    .cart-drawer-recommendations__item {
+      flex: none;
+      width: 100%;
+    }
+  }
+
+  /* Dawn's base .button sets min-width: 12rem / min-height: 4.5rem globally —
+     without this override, the recs Add/View buttons can't actually shrink
+     below that floor no matter what padding/font-size we set inline. */
+  .cart-drawer-recommendations__item .button {
+    min-width: 0;
+    min-height: 0;
   }
 </style>
 
@@ -86,11 +170,8 @@
 
       <div class="tg-drawer-split" style="display:flex;flex:1;min-height:0;overflow:hidden;">
         {%- if cart.item_count > 0 -%}
-          <div
-            class="tg-drawer-recs-rail"
-            style="width:170px;flex-shrink:0;border-right:1px solid rgba(0,0,0,0.08);padding:16px 12px;overflow-y:auto;"
-          >
-            <p style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;margin:0 0 12px;">
+          <div class="tg-drawer-recs-rail">
+            <p style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;margin:0 0 6px;">
               You may also like
             </p>
             <div
@@ -99,10 +180,7 @@
               data-recommendations-url="{{ routes.product_recommendations_url }}"
               data-loaded="false"
             >
-              <div
-                class="cart-drawer-recommendations__results"
-                style="display:flex;flex-direction:column;gap:10px;"
-              ></div>
+              <div class="cart-drawer-recommendations__results"></div>
             </div>
           </div>
         {%- endif -%}
@@ -110,7 +188,7 @@
         <div class="tg-drawer-main" style="flex:1;min-width:0;display:flex;flex-direction:column;overflow:hidden;">
 
       {%- liquid
-        assign tg_free_ship_threshold_cents = 17500
+        assign tg_free_ship_threshold_cents = 15000
         assign tg_remaining_cents = tg_free_ship_threshold_cents | minus: cart.total_price
         if tg_remaining_cents < 0
           assign tg_remaining_cents = 0
