@@ -22,7 +22,7 @@ use Dawn's own `<cart-drawer>` instead (it's already present in the DOM,
 just overridden/hidden by that app).
 
 - `snippets/cart-drawer.liquid` → same file as above; this revision adds a
-  free-shipping progress bar (pure Liquid, $175 USD threshold hardcoded —
+  free-shipping progress bar (pure Liquid, $150 USD threshold hardcoded —
   **not currency-converted for GBP/CAD**) and a recommendations placeholder,
   on top of the `tg_cart` forwarding
 - `sections/cart-drawer-recommendations.liquid` → **new file**, add via

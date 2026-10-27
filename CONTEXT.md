@@ -115,7 +115,7 @@ branch (not yet merged/deployed) — dormant on `main` until a theme actually se
 - Country/currency selector: `US` (USD), `GB` (GBP), `CA` (CAD) in the UI dropdown
   (`COUNTRY_CONFIG`), though `get-products.js` also recognizes `MX` (MXN) server-side.
   Each country has its own free-shipping threshold (`freeShippingLocal`), all pegged to a
-  $175 USD equivalent.
+  $150 USD equivalent.
 - Discount is applied two ways depending on flow: `get-discount.js` mints a code, while
   `create-checkout.js` applies the discount directly on draft-order line items (used by the
   main checkout path — no visible discount code to the customer).
